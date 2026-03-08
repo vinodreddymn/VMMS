@@ -1,0 +1,66 @@
+Passwords: 
+
+admin=AdminPass123!, 
+
+security_head=Security123!, 
+
+enrollment=Enroll123!
+
+
+
+psql -h localhost -U svr_useruser -d vmms_db < vmms_backend/migrations/002_seed_sample.sql
+
+
+
+
+
+ALTER ROLE svr_user SET client_encoding TO 'utf8';
+ALTER ROLE svr_user SET default_transaction_isolation TO 'read committed';
+ALTER ROLE svr_user SET timezone TO 'Asia/Kolkata';
+
+GRANT ALL PRIVILEGES ON DATABASE vmms_db TO svr_user;
+
+Here are the **minimal commands** you need 👇
+
+### 1️⃣ Login directly to `vmms_db`
+
+```powershell
+psql -U svr_user -d vmms_db -h localhost
+```
+
+Enter password → you will be inside:
+
+```
+vmms_db=#
+```
+
+---
+
+### 2️⃣ (Alternative) Login first, then switch DB
+
+```powershell
+psql -U svr_user -h localhost
+```
+
+Then inside psql:
+
+```sql
+\c vmms_db
+```
+
+---
+
+### 3️⃣ Verify you are in correct DB
+
+```sql
+SELECT current_database(), current_user;
+```
+
+That’s all.
+Now you can start creating tables in `vmms_db`.
+
+
+npm create vite@latest vmms-frontend
+cd vmms_frontend
+npm install
+npm install axios react-router-dom socket.io-client zustand @mui/material @emotion/react @emotion/styled recharts

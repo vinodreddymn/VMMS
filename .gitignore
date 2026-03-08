@@ -1,0 +1,27 @@
+# Node modules
+node_modules/
+
+# Environment files
+.env
+
+# Build folders
+dist/
+build/
+
+# Logs
+logs
+*.log
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Upload folders (optional)
+vmms_backend/uploads/
+vmms_backend/exports/
+
+# Certificates
+vmms_frontend/certs/
+
+# VSCode
+.vscode/
