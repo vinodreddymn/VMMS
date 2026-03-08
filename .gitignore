@@ -16,11 +16,11 @@ logs
 .DS_Store
 Thumbs.db
 
-# Upload folders (optional)
+# Backend folders
 vmms_backend/uploads/
 vmms_backend/exports/
 
-# Certificates
+# Frontend
 vmms_frontend/certs/
 
 # VSCode
