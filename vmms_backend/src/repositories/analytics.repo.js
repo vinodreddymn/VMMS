@@ -439,6 +439,8 @@ export const getAccessTransactions = async (filters = {}) => {
     person_type = "VISITOR",
     status,
     direction,
+    person_id,
+    supervisor_id,
     from_date,
     to_date,
     project_id,
@@ -474,6 +476,15 @@ export const getAccessTransactions = async (filters = {}) => {
     values.push(direction);
   }
 
+  if (person_id) {
+    if (person_type === "LABOUR") {
+      where.push(`l.id = $${i++}`);
+    } else {
+      where.push(`v.id = $${i++}`);
+    }
+    values.push(person_id);
+  }
+
   if (from_date) {
     where.push(`al.scan_time::DATE >= $${i++}::DATE`);
     values.push(from_date);
@@ -499,6 +510,10 @@ export const getAccessTransactions = async (filters = {}) => {
     if (department_id) {
       where.push(`d.id = $${i++}`);
       values.push(department_id);
+    }
+    if (supervisor_id) {
+      where.push(`l.supervisor_id = $${i++}`);
+      values.push(supervisor_id);
     }
     if (q) {
       where.push(`(
@@ -603,6 +618,7 @@ export const getAccessTransactions = async (filters = {}) => {
           l.id AS labour_id,
           l.full_name,
           l.phone,
+          l.aadhaar_last4,
           sup.full_name AS supervisor_name,
           p.project_name,
           d.department_name,

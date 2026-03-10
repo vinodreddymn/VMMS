@@ -40,23 +40,15 @@ const menuStructure = [
       { title: "My Profile", path: "/profile", icon: AccountCircleIcon },
       { title: "Analytics", path: "/analytics", icon: InsightsIcon },
       { title: "Admin Dashboard", path: "/admin-dashboard", icon: InsightsIcon, adminOnly: true },
+      { title: "Andon Display", path: "/andon", icon: TvIcon },
     ],
   },
   {
     label: "ENROLLMENT",
     items: [
-      { title: "Visitors List", path: "/visitors", icon: PeopleIcon },
-      { title: "Visitor Register", path: "/visitors/register", icon: PeopleIcon },
-      { title: "Visitor New", path: "/visitors/new", icon: PeopleIcon },
-    ],
-  },
-  {
-    label: "LABOUR",
-    items: [
-      { title: "Labour List", path: "/labour", icon: EngineeringIcon },
-      { title: "Labour New", path: "/labour/new", icon: EngineeringIcon },
+      { title: "Visitors", path: "/visitors", icon: PeopleIcon },
+      { title: "Labourers", path: "/labour", icon: EngineeringIcon },
       { title: "Manifest", path: "/labour/manifest", icon: ListAltIcon },
-      { title: "Token Return", path: "/labour/tokens/return", icon: ListAltIcon },
     ],
   },
   {
@@ -65,7 +57,6 @@ const menuStructure = [
       { title: "Gate Control", path: "/gate", icon: LoginIcon },
       { title: "Manual Gate Entry", path: "/gate/manual", icon: LoginIcon },
       { title: "Gate Display", path: "/gate/display", icon: TvIcon },
-      { title: "Andon Display", path: "/andon", icon: TvIcon },
       { title: "Materials", path: "/materials", icon: InventoryIcon, adminOnly: true },
     ],
   },

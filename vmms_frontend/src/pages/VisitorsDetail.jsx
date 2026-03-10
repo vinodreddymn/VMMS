@@ -1,15 +1,22 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useMemo, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { getVisitor } from '../api/visitor.api'
 import labourApi from '../api/labour.api'
 import { getGates } from '../api/master.api'
+import { getTransactions } from '../api/analytics.api'
 import useAuthStore from '../store/auth.store'
+import CheckCircleIcon from '@mui/icons-material/CheckCircle'
+import CancelIcon from '@mui/icons-material/Cancel'
+import LoginIcon from '@mui/icons-material/Login'
+import LogoutIcon from '@mui/icons-material/Logout'
 import { normalizeRole, canEditVisitor } from '../utils/visitorPermissions'
 import {
   Box, Typography, Divider, Chip, CircularProgress,
   Avatar, Paper, Tabs, Tab, Table, TableHead,
-  TableRow, TableCell, TableBody, Button, Stack, Alert
+  TableRow, TableCell, TableBody, Button, Stack, Alert, TextField
 } from '@mui/material'
+import VisitorHistoryTab from '../components/visitor/VisitorHistoryTab'
+import LabourHistoryTab from '../components/visitor/LabourHistoryTab'
 
 export default function VisitorsDetail() {
   const { id } = useParams()
@@ -20,10 +27,23 @@ export default function VisitorsDetail() {
 
   const [profile, setProfile] = useState(null)
   const [loading, setLoading] = useState(true)
-  const [tab, setTab] = useState(0)
+  const [tab, setTab] = useState('profile')
   const [manifests, setManifests] = useState([])
   const [manifestsLoading, setManifestsLoading] = useState(false)
   const [gates, setGates] = useState([])
+
+  const todayISO = () => new Date().toISOString().split('T')[0]
+
+  const [historyFrom, setHistoryFrom] = useState(() => todayISO())
+  const [historyTo, setHistoryTo] = useState(() => todayISO())
+  const [visitorHistory, setVisitorHistory] = useState([])
+  const [visitorHistoryLoading, setVisitorHistoryLoading] = useState(false)
+  const [visitorStatus, setVisitorStatus] = useState('-')
+
+  const [labourHistoryFrom, setLabourHistoryFrom] = useState(() => todayISO())
+  const [labourHistoryTo, setLabourHistoryTo] = useState(() => todayISO())
+  const [labourHistory, setLabourHistory] = useState([])
+  const [labourHistoryLoading, setLabourHistoryLoading] = useState(false)
 
   useEffect(() => {
     getGates()
@@ -56,6 +76,7 @@ export default function VisitorsDetail() {
               setManifests([])
             })
             .finally(() => mounted && setManifestsLoading(false))
+
         } else {
           setManifests([])
         }
@@ -65,8 +86,105 @@ export default function VisitorsDetail() {
     return () => (mounted = false)
   }, [id])
 
+  // Latest overall status (independent of date filter)
+  useEffect(() => {
+    let mounted = true
+    getTransactions({
+      person_type: 'VISITOR',
+      person_id: id,
+      limit: 1,
+      page: 1,
+    })
+      .then((res) => {
+        if (!mounted) return
+        const latest = res?.data?.rows?.[0]
+        if (latest && latest.status !== 'FAILED') {
+          setVisitorStatus(latest.direction === 'IN' ? 'Inside' : 'Outside')
+        } else {
+          setVisitorStatus('No logs')
+        }
+      })
+      .catch(() => mounted && setVisitorStatus('No logs'))
+
+    return () => {
+      mounted = false
+    }
+  }, [id])
+
+  // Visitor transactions for selected date
+  useEffect(() => {
+    if (tab !== 'visitorHistory') return
+    let mounted = true
+    setVisitorHistoryLoading(true)
+    getTransactions({
+      person_type: 'VISITOR',
+      from_date: historyFrom,
+      to_date: historyTo,
+      person_id: id,
+      limit: 200,
+      page: 1,
+    })
+      .then((res) => {
+        if (!mounted) return
+        const rows = res?.data?.rows || []
+        setVisitorHistory(rows)
+      })
+      .catch(() => {
+        if (!mounted) return
+        setVisitorHistory([])
+      })
+      .finally(() => mounted && setVisitorHistoryLoading(false))
+
+    return () => {
+      mounted = false
+    }
+  }, [tab, historyFrom, historyTo, id])
+
+  // Labours transactions for selected date
+  useEffect(() => {
+    if (tab !== 'labourHistory' || !profile?.visitor?.can_register_labours) return
+    let mounted = true
+    setLabourHistoryLoading(true)
+    getTransactions({
+      person_type: 'LABOUR',
+      from_date: labourHistoryFrom,
+      to_date: labourHistoryTo,
+      supervisor_id: id,
+      limit: 200,
+      page: 1,
+    })
+      .then((res) => {
+        if (!mounted) return
+        setLabourHistory(res?.data?.rows || [])
+      })
+      .catch(() => mounted && setLabourHistory([]))
+      .finally(() => mounted && setLabourHistoryLoading(false))
+
+    return () => {
+      mounted = false
+    }
+  }, [tab, labourHistoryFrom, labourHistoryTo, id, profile?.visitor?.can_register_labours])
+
   const formatBool = (v) => (v ? 'Yes' : 'No')
   const formatDate = (d) => (d ? new Date(d).toLocaleDateString() : '-')
+  const formatDateTime = (d) => (d ? new Date(d).toLocaleString() : '-')
+
+  const tabs = useMemo(() => {
+    const base = [
+      { key: 'profile', label: 'Profile' },
+      { key: 'documents', label: 'Documents' },
+      { key: 'rfid', label: 'RFID Card' },
+      { key: 'biometric', label: 'Biometric' },
+      { key: 'visitorHistory', label: 'Visitor History' },
+    ]
+    if (profile?.visitor?.can_register_labours) {
+      base.push(
+        { key: 'labourManifests', label: 'Labour Manifests' },
+        { key: 'labourHistory', label: 'Labour History' },
+      )
+    }
+    return base
+  }, [profile?.visitor?.can_register_labours])
 
   if (loading) {
     return (
@@ -132,13 +250,39 @@ export default function VisitorsDetail() {
   <Typography variant="body2" sx={{opacity:0.85}}>
   {visitor.company_name || "Company Not Provided"}
   </Typography>
-
+  <Box sx={{ display: "flex", gap: 1, mt: 1 }}>
   <Chip
-  label={visitor.status}
-  size="small"
-  color={visitor.status === "ACTIVE" ? "success" : "default"}
-  sx={{ mt:1, fontWeight:600 }}
+    icon={visitor.status === "ACTIVE" ? <CheckCircleIcon /> : <CancelIcon />}
+    label={visitor.status === "ACTIVE" ? "Active Visitor" : "Inactive Visitor"}
+    size="small"
+    color={visitor.status === "ACTIVE" ? "success" : "error"}
+    sx={{
+      mt: 1,
+      fontWeight: 600,
+      borderRadius: 2
+    }}
   />
+
+  {/* Current Presence Status */}
+  <Chip
+    icon={visitorStatus === "Inside" ? <LoginIcon /> : <LogoutIcon />}
+    label={visitorStatus === "Inside" ? "Currently Inside Facility" : "Currently Outside"}
+    size="small"
+    color={
+      visitorStatus === "Inside"
+        ? "success"
+        : visitorStatus === "Outside"
+        ? "default"
+        : "warning"
+    }
+    variant="outlined"
+    sx={{
+      mt: 1,
+      fontWeight: 600,
+      borderRadius: 2
+    }}
+  />
+  </Box>
 
   </Box>
   </Box>
@@ -194,14 +338,9 @@ export default function VisitorsDetail() {
   scrollButtons="auto"
   >
 
-  <Tab label="Profile"/>
-  <Tab label="Documents"/>
-  <Tab label="RFID Card"/>
-  <Tab label="Biometric"/>
-
-  {visitor.can_register_labours && (
-  <Tab label="Labour Manifests"/>
-  )}
+  {tabs.map((t)=>(
+    <Tab key={t.key} value={t.key} label={t.label}/>
+  ))}
 
   </Tabs>
 
@@ -210,7 +349,7 @@ export default function VisitorsDetail() {
 
   {/* ================= PROFILE ================= */}
 
-  {tab===0 && (
+  {tab==='profile' && (
 
   <Box>
 
@@ -384,7 +523,7 @@ export default function VisitorsDetail() {
 
   {/* ================= DOCUMENTS ================= */}
 
-  {tab===1 && (
+  {tab==='documents' && (
 
   <Box>
 
@@ -423,7 +562,7 @@ export default function VisitorsDetail() {
 
   {/* ================= RFID ================= */}
 
-  {tab===2 && (
+  {tab==='rfid' && (
 
   <Box>
 
@@ -458,9 +597,32 @@ export default function VisitorsDetail() {
 
 
 
+  {/* ================= VISITOR HISTORY ================= */}
+
+  {tab==='visitorHistory' && (
+
+  <Box>
+
+  <VisitorHistoryTab
+    historyFrom={historyFrom}
+    historyTo={historyTo}
+    setHistoryFrom={setHistoryFrom}
+    setHistoryTo={setHistoryTo}
+    visitorStatus={visitorStatus}
+    visitorHistory={visitorHistory}
+    loading={visitorHistoryLoading}
+    formatDateTime={formatDateTime}
+  />
+
+  </Box>
+
+  )}
+
+
+
   {/* ================= BIOMETRIC ================= */}
 
-  {tab===3 && (
+  {tab==='biometric' && (
 
   <Box>
 
@@ -497,7 +659,7 @@ export default function VisitorsDetail() {
 
   {/* ================= LABOUR MANIFESTS ================= */}
 
-  {tab===4 && visitor.can_register_labours && (
+  {tab==='labourManifests' && visitor.can_register_labours && (
 
   <Box>
 
@@ -522,6 +684,30 @@ export default function VisitorsDetail() {
   />
 
   )}
+
+  </Box>
+
+  )}
+
+  {/* ================= LABOUR HISTORY ================= */}
+
+  {tab==='labourHistory' && visitor.can_register_labours && (
+
+  <Box>
+
+
+
+  <LabourHistoryTab
+    labourHistoryFrom={labourHistoryFrom}
+    labourHistoryTo={labourHistoryTo}
+    setLabourHistoryFrom={setLabourHistoryFrom}
+    setLabourHistoryTo={setLabourHistoryTo}
+    labourHistory={labourHistory}
+    loading={labourHistoryLoading}
+    formatDateTime={formatDateTime}
+    manifests={manifests}
+    fileBase={fileBase}
+  />
 
   </Box>
 
@@ -612,5 +798,3 @@ function DataTableSimple({ columns, rows }) {
     </Table>
   )
 }
-
-
