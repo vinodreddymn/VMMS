@@ -10,6 +10,19 @@ enrollment=Enroll123!
 
 psql -h localhost -U svr_useruser -d vmms_db < vmms_backend/migrations/002_seed_sample.sql
 
+
+
+PGPASSWORD=india123 psql -h <host> -p 5432 -U svr_user -d vmms_db -f vmms_db_2026-03-10.sql
+PGPASSWORD=india123 pg_restore -h <host> -p 5432 -U svr_user -d vmms_db -c vmms_db_2026-03-10.dump
+
+PGPASSWORD=india123 psql -h <host> -p 5432 -U svr_user -f vmms_db_globals_2026-03-10.sql
+
+PGPASSWORD=india123 pg_restore -h <host> -p 5432 -U svr_user -d vmms_db -c vmms_db_2026-03-10.dump
+
+
+
+
+
 nginx -s stop
 nginx.exe
 
