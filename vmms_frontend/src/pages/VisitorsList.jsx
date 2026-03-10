@@ -116,6 +116,7 @@ export default function VisitorsList() {
       EXPIRED: 'error',
       BLOCKED: 'error',
       INACTIVE: 'default',
+      SOFT_LOCK: 'warning'
     }
     return (
       <Chip
@@ -132,16 +133,18 @@ export default function VisitorsList() {
     let expired = 0
     let expiring = 0
     let inactive = 0
+    let softLock = 0
 
     visitors.forEach((v) => {
       const status = v.status || deriveStatus(v)
       if (status === 'ACTIVE') active += 1
       if (status === 'EXPIRED') expired += 1
       if (status === 'INACTIVE') inactive += 1
+      if (status === 'SOFT_LOCK') softLock += 1
       if (isExpiringSoon(v.valid_to)) expiring += 1
     })
 
-    return { total: visitors.length, active, expired, inactive, expiring }
+    return { total: visitors.length, active, expired, inactive, expiring, softLock}
   }, [visitors])
 
   /* ---------------- PROCESS DATA & FILTER BY TYPE ---------------- */
@@ -226,116 +229,61 @@ export default function VisitorsList() {
 
   /* ---------------- RENDER ---------------- */
   return (
-    <Container maxWidth="xl" sx={{ py: 2.5 }}>
-      {/* HEADER */}
+    <Container maxWidth="xl">
+
+      {/* SEARCH and New Registration*/}
       <Paper
-        elevation={0}
         sx={{
-          p: 2.5,
-          mb: 2.5,
-          borderRadius: 3,
-          border: '1px solid rgba(15,23,42,0.08)',
-          background:
-            'linear-gradient(135deg, rgba(15,23,42,0.92), rgba(30,64,175,0.92))',
-          color: '#f8fafc',
-          boxShadow: '0 16px 40px rgba(15,23,42,0.2)'
+          p: 1,
+          mb: 2,
+          borderRadius: 2,
+          border: "1px solid #e2e8f0"
         }}
       >
         <Box
           sx={{
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            flexWrap: 'wrap',
-            gap: 2
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            gap: 2,
+            flexWrap: "wrap"
           }}
         >
-          <Box>
-            <Typography variant="h5" fontWeight={700} sx={{ mb: 0.5 }}>
-              Visitor Clearance Console
-            </Typography>
-            <Typography variant="body2" sx={{ opacity: 0.8 }}>
-              INS Rajali - Naval Airfield Visitor Management
-            </Typography>
-            <Box sx={{ mt: 1, display: 'flex', gap: 1, flexWrap: 'wrap' }}>
-              <Chip
-                label={allowEdit ? 'Edit Access' : 'View Only'}
-                size="small"
-                sx={{
-                  bgcolor: allowEdit ? 'rgba(34,197,94,0.2)' : 'rgba(248,113,113,0.2)',
-                  color: '#f8fafc',
-                  border: '1px solid rgba(255,255,255,0.2)',
-                  fontWeight: 600
-                }}
-              />
-              <Chip
-                label={allowCreate ? 'Can Register Visitors' : 'Registration Restricted'}
-                size="small"
-                sx={{
-                  bgcolor: allowCreate ? 'rgba(59,130,246,0.25)' : 'rgba(148,163,184,0.2)',
-                  color: '#f8fafc',
-                  border: '1px solid rgba(255,255,255,0.2)',
-                  fontWeight: 600
-                }}
-              />
-              <Chip
-                label={`Role: ${role}`}
-                size="small"
-                sx={{
-                  bgcolor: 'rgba(15,23,42,0.5)',
-                  color: '#e2e8f0',
-                  border: '1px solid rgba(255,255,255,0.15)',
-                  fontWeight: 600
-                }}
-              />
-            </Box>
+          {/* Search */}
+          <Box sx={{ flex: 1, minWidth: 260 }}>
+            <SearchBar
+              value={searchInput}
+              onChange={setSearchInput}
+              placeholder="Search by Pass No, Name, Phone or Organization..."
+            />
           </Box>
 
-          <Box sx={{ display: 'flex', gap: 1 }}>
-            <Button
-              variant="outlined"
-              size="small"
-              startIcon={<RefreshIcon />}
-              onClick={fetchVisitors}
-              disabled={loading}
-              sx={{
-                borderColor: 'rgba(255,255,255,0.6)',
-                color: '#f8fafc',
-                '&:hover': { borderColor: '#f8fafc' }
-              }}
-            >
-              Refresh
-            </Button>
-
-            <Tooltip title={allowCreate ? 'Register new visitor' : 'Only ENROLLMENT_STAFF_VISITORS can register'}>
-              <span>
-                <Button
-                  variant="contained"
-                  size="small"
-                  startIcon={<AddIcon />}
-                  onClick={() => navigate('/visitors/new')}
-                  disabled={!allowCreate}
-                  sx={{
-                    bgcolor: '#38bdf8',
-                    color: '#0f172a',
-                    '&:hover': { bgcolor: '#7dd3fc' }
-                  }}
-                >
-                  Register
-                </Button>
-              </span>
-            </Tooltip>
-          </Box>
+          {/* Register Button */}
+          <Tooltip
+            title={
+              allowCreate
+                ? "Register new visitor"
+                : "Only ENROLLMENT_STAFF_VISITORS can register"
+            }
+          >
+            <span>
+              <Button
+                variant="contained"
+                startIcon={<AddIcon />}
+                onClick={() => navigate("/visitors/new")}
+                disabled={!allowCreate}
+                sx={{
+                  bgcolor: "#38bdf8",
+                  color: "#0f172a",
+                  height: 40,
+                  "&:hover": { bgcolor: "#7dd3fc" }
+                }}
+              >
+                Register
+              </Button>
+            </span>
+          </Tooltip>
         </Box>
-      </Paper>
-
-      {/* SEARCH */}
-      <Paper sx={{ p: 2, mb: 2, borderRadius: 2, border: '1px solid #e2e8f0' }}>
-        <SearchBar
-          value={searchInput}
-          onChange={setSearchInput}
-          placeholder="Search by Pass No, Name, Phone or Organization..."
-        />
       </Paper>
 
       <Box sx={{ display: 'flex', gap: 1.5, flexWrap: 'wrap', mb: 2 }}>
@@ -344,6 +292,7 @@ export default function VisitorsList() {
         <Chip label={`Expiring Soon: ${stats.expiring}`} color="warning" sx={{ fontWeight: 600 }} />
         <Chip label={`Expired: ${stats.expired}`} color="error" sx={{ fontWeight: 600 }} />
         <Chip label={`Inactive: ${stats.inactive}`} sx={{ fontWeight: 600 }} />
+        <Chip label={`Soft Locked: ${stats.softLock}`} color="error" sx={{ fontWeight: 600 }} />
       </Box>
 
       {/* TABS */}

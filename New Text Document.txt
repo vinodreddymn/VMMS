@@ -10,7 +10,10 @@ enrollment=Enroll123!
 
 psql -h localhost -U svr_useruser -d vmms_db < vmms_backend/migrations/002_seed_sample.sql
 
+nginx -s stop
+nginx.exe
 
+taskkill /F /IM nginx.exe
 
 
 

@@ -214,41 +214,9 @@ export default function Dashboard() {
   return (
     <Container maxWidth="xl" sx={{ py: 3 }}>
       {/* Header */}
-      <Box sx={{ mb: 4 }}>
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 2, mb: 2 }}>
-          <Box>
-            <Typography variant="h4" fontWeight={700} gutterBottom>
-              Welcome{user?.full_name ? `, ${user.full_name}` : ''}
-            </Typography>
-            <Typography variant="body2" color="text.secondary">
-              VMMS Dashboard
-            </Typography>
-          </Box>
 
-          <Box sx={{ display: 'flex', gap: 1 }}>
-            <Button
-              variant="outlined"
-              startIcon={<RefreshIcon />}
-              onClick={fetchDashboardData}
-              disabled={loading}
-            >
-              Refresh
-            </Button>
-            <Button variant="contained" color="error" onClick={logout}>
-              Logout
-            </Button>
-          </Box>
-        </Box>
 
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-          <TimelapseIcon sx={{ fontSize: 16, color: 'text.secondary' }} />
-          <Typography variant="caption" color="text.secondary">
-            Last updated: {lastRefresh.toLocaleTimeString()}
-          </Typography>
-        </Box>
-      </Box>
 
-      <Divider sx={{ mb: 3 }} />
 
       {/* Overview + KPIs */}
       <Grid container spacing={2} sx={{ mb: 3 }}>
@@ -359,7 +327,7 @@ export default function Dashboard() {
             {liveProjectCounts.map((p) => (
               <Chip
                 key={p.project_name}
-                label={`${p.project_name}: ${p.visitors + p.labours} (V ${p.visitors} / L ${p.labours})`}
+                label={`${p.project_name}: ${p.visitors + p.labours} (Visitors: ${p.visitors} / Labourers: ${p.labours})`}
                 color="info"
                 variant="outlined"
                 sx={{ mb: 1 }}

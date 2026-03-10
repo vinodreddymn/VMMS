@@ -590,3 +590,93 @@ const validateVisitorDepartmentMapping = async (
   }
 
 };
+
+// =====================================================
+// EXTEND DOCUMENT VALIDITY
+// =====================================================
+export const extendDocument = async (req, res) => {
+  try {
+
+    const { doc_id } = req.params
+    const { expiry_date } = req.body
+
+    if (!expiry_date) {
+      return res.status(400).json({
+        success: false,
+        error: "expiry_date is required"
+      })
+    }
+
+    const document = await visitorRepo.extendDocument(
+      doc_id,
+      expiry_date
+    )
+
+    if (!document) {
+      return res.status(404).json({
+        success: false,
+        error: "Document not found"
+      })
+    }
+
+    res.json({
+      success: true,
+      message: "Document expiry updated",
+      document
+    })
+
+  } catch (error) {
+
+    logger.error("Extend Document Error:", error)
+
+    res.status(500).json({
+      success: false,
+      error: error.message
+    })
+
+  }
+}
+
+// =====================================================
+// DELETE DOCUMENT
+// =====================================================
+
+export const deleteDocument = async (req, res) => {
+
+  try {
+
+    const { doc_id } = req.params
+
+    const deleted = await visitorRepo.deleteDocument(doc_id)
+
+    if (!deleted) {
+      return res.status(404).json({
+        success: false,
+        error: "Document not found"
+      })
+    }
+
+    res.json({
+      success: true,
+      message: "Document deleted successfully"
+    })
+
+  } catch (error) {
+
+    logger.error("Delete Document Error:", error)
+
+    if (error.code === "23503") {
+      return res.status(400).json({
+        success: false,
+        error: "Document cannot be deleted because it is referenced in card_reissue_log"
+      })
+    }
+
+    res.status(500).json({
+      success: false,
+      error: error.message
+    })
+
+  }
+
+}

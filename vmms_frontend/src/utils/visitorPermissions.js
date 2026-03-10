@@ -3,7 +3,7 @@ export const normalizeRole = (user) => {
   return String(role).toUpperCase().trim()
 }
 
-export const canCreateVisitor = (role) => role === "ENROLLMENT_STAFF_VISITORS"
+export const canCreateVisitor = (role) => ["ADMIN", "SUPER_ADMIN", "REGULATING_PETTY_OFFICER", "ENROLLMENT_STAFF_VISITORS"].includes(role)
 
 export const canEditVisitor = (role) =>
-  ["ADMIN", "SUPER_ADMIN", "REGULATING_PETTY_OFFICER"].includes(role)
+  ["ADMIN", "SUPER_ADMIN", "REGULATING_PETTY_OFFICER", "ENROLLMENT_STAFF_VISITORS"].includes(role)

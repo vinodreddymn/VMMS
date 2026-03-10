@@ -9,6 +9,7 @@ import logger from "./utils/logger.util.js";
 // Initialize cron jobs
 import { startNoShowCron } from "./cron/noShow.cron.js";
 import { startMaterialBalanceCron } from "./cron/materialAlert.cron.js";
+import startSoftlockCron from "./cron/softlock.cron.js";
 
 const app = express();
 
@@ -44,6 +45,7 @@ app.use(errorMiddleware);
 /* ---------- Start Scheduled Jobs ---------- */
 startNoShowCron();
 startMaterialBalanceCron();
+await startSoftlockCron();
 
 logger.info("Cron jobs initialized");
 

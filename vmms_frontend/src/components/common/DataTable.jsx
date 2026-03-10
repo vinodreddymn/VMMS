@@ -64,7 +64,7 @@ export default function DataTable({
   }
 
   return (
-    <Box>
+    <Box sx={{ width: '100%', overflow: 'hidden' }}>
       <TableContainer
         component={Paper}
         elevation={0}
@@ -72,6 +72,11 @@ export default function DataTable({
           border: '1px solid #eee',
           borderRadius: 1,
           maxHeight: maxHeight,
+          width: '100%',
+          overflowX: 'auto',
+          overflowY: maxHeight ? 'auto' : 'visible',
+          scrollbarGutter: 'stable',
+
           '&::-webkit-scrollbar': {
             width: '8px',
             height: '8px'
@@ -88,7 +93,14 @@ export default function DataTable({
           }
         }}
       >
-        <Table stickyHeader={stickyHeader} size="small">
+        <Table
+          stickyHeader={stickyHeader}
+          size="small"
+          sx={{
+            width: '100%',
+            tableLayout: 'fixed'
+          }}
+        >
           <TableHead>
             <TableRow sx={{ backgroundColor: '#f8f9fa' }}>
               {columns.map((col) => (
@@ -103,7 +115,8 @@ export default function DataTable({
                     backgroundColor: '#f8f9fa',
                     borderBottom: '2px solid #e0e0e0',
                     textTransform: 'uppercase',
-                    letterSpacing: '0.5px'
+                    letterSpacing: '0.5px',
+                    whiteSpace: 'nowrap'
                   }}
                 >
                   {col.label}
@@ -149,7 +162,11 @@ export default function DataTable({
                     sx={{
                       fontSize: '0.9rem',
                       color: '#555',
-                      py: 1.5
+                      py: 1.5,
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                      whiteSpace: 'nowrap',
+                      maxWidth: 200
                     }}
                   >
                     {col.render
@@ -160,7 +177,14 @@ export default function DataTable({
                   </TableCell>
                 ))}
                 {actions.length > 0 && (
-                  <TableCell align="center" sx={{ py: 1.5 }}>
+                  <TableCell
+                    align="center"
+                    sx={{
+                      py: 1.5,
+                      whiteSpace: 'nowrap',
+                      width: 120
+                    }}
+                  >
                     <Box sx={{ display: 'flex', gap: 0.5, justifyContent: 'center' }}>
                       {actions
                         .filter((a) => !(typeof a.hidden === 'function' && a.hidden(row)))
@@ -193,7 +217,7 @@ export default function DataTable({
 
                           if (a.icon) {
                             return (
-                              <Tooltip key={i} title={a.label}>
+                              <Tooltip key={a.label || i} title={a.label}>
                                 <IconButton
                                   {...buttonProps}
                                   sx={{
@@ -207,7 +231,11 @@ export default function DataTable({
                             )
                           }
 
-                          return <Button {...buttonProps}>{a.label}</Button>
+                          return (
+                            <Button key={a.label || i} {...buttonProps}>
+                              {a.label}
+                            </Button>
+                          )
                         })}
                     </Box>
                   </TableCell>

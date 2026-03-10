@@ -10,7 +10,7 @@ export default function SearchBar({ value, onChange, placeholder = 'Search' }) {
         placeholder={placeholder}
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        style={{ width: 300 }}
+        style={{ width: 500 }}
       />
     </div>
   )

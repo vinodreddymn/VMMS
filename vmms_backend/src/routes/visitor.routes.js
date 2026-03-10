@@ -75,6 +75,11 @@ router.post(
 
 // Get visitor documents
 router.get("/:visitor_id/documents", auth, controller.getDocuments);
+// Extend document validity
+router.put("/visitor-documents/:doc_id/extend", auth, controller.extendDocument);
+
+// Delete document
+router.delete("/visitor-documents/:doc_id", auth, controller.deleteDocument);
 
 /* =====================================================
    PHOTO UPLOAD

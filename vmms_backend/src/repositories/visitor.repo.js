@@ -756,3 +756,34 @@ export const updateVisitorGatePermissions = async (
 
   }
 };
+
+export const extendDocument = async (docId, expiryDate) => {
+
+  const result = await db.query(
+    `
+    UPDATE visitor_documents
+    SET expiry_date = $1
+    WHERE id = $2
+    RETURNING *
+    `,
+    [expiryDate, docId]
+  )
+
+  return result.rows[0]
+
+}
+
+export const deleteDocument = async (docId) => {
+
+  const result = await db.query(
+    `
+    DELETE FROM visitor_documents
+    WHERE id = $1
+    RETURNING id
+    `,
+    [docId]
+  )
+
+  return result.rowCount > 0
+
+}

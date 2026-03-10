@@ -1,5 +1,6 @@
-import React, { useState } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
+import React, { useState, useEffect } from "react"
+import { useNavigate, useParams } from "react-router-dom"
+
 import {
   Box,
   Typography,
@@ -12,53 +13,81 @@ import {
   Divider,
   Stack,
   CircularProgress,
-  Alert
-} from '@mui/material'
-import { uploadVisitorDocument } from '../api/visitor.api'
-import useAuthStore from '../store/auth.store'
-import { normalizeRole, canEditVisitor } from '../utils/visitorPermissions'
+  Alert,
+  IconButton,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableRow,
+  Tooltip
+} from "@mui/material"
+
+import EditIcon from "@mui/icons-material/Edit"
+import DeleteIcon from "@mui/icons-material/Delete"
+
+import {
+  uploadVisitorDocument,
+  getVisitorDocuments,
+  extendVisitorDocument,
+  deleteVisitorDocument
+} from "../api/visitor.api"
+
+import useAuthStore from "../store/auth.store"
+import { normalizeRole, canEditVisitor } from "../utils/visitorPermissions"
 
 const DOC_TYPES = [
-  'AADHAAR',
-  'PASSPORT',
-  'DRIVING_LICENSE',
-  'COMPANY_ID',
-  'VOTER_ID',
-  'OTHER'
+  "AADHAAR",
+  "PASSPORT",
+  "DRIVING_LICENSE",
+  "COMPANY_ID",
+  "VOTER_ID",
+  "OTHER"
 ]
 
 export default function VisitorDocumentUpload() {
   const { id } = useParams()
   const navigate = useNavigate()
+
   const user = useAuthStore((s) => s.user)
   const allowEdit = canEditVisitor(normalizeRole(user))
 
+  const [documents, setDocuments] = useState([])
   const [loading, setLoading] = useState(false)
-  const [docType, setDocType] = useState('')
-  const [docNumber, setDocNumber] = useState('')
-  const [expiryDate, setExpiryDate] = useState('')
+
+  const [docType, setDocType] = useState("")
+  const [docNumber, setDocNumber] = useState("")
+  const [expiryDate, setExpiryDate] = useState("")
   const [file, setFile] = useState(null)
 
-  if (!allowEdit) {
-    return (
-      <Paper sx={{ p: 3, maxWidth: 720, mx: 'auto' }}>
-        <Alert severity="warning" sx={{ mb: 2 }}>
-          Document uploads are restricted to ADMIN, SUPER_ADMIN, or REGULATING_PETTY_OFFICER.
-        </Alert>
-        <Button variant="contained" onClick={() => navigate(-1)}>
-          Back
-        </Button>
-      </Paper>
-    )
+  const [editDocId, setEditDocId] = useState(null)
+  const [newExpiry, setNewExpiry] = useState("")
+
+  useEffect(() => {
+    loadDocuments()
+  }, [])
+
+  const loadDocuments = async () => {
+    try {
+      const res = await getVisitorDocuments(id)
+
+      const docs =
+        res?.data?.data ||
+        res?.data?.documents ||
+        res?.data ||
+        []
+
+      setDocuments(Array.isArray(docs) ? docs : [])
+
+    } catch (err) {
+      console.error("Error loading documents:", err)
+      setDocuments([])
+    }
   }
 
-  const handleFileChange = (e) => {
-    setFile(e.target.files?.[0] || null)
-  }
-
-  const handleSubmit = async () => {
+  const handleUpload = async () => {
     if (!docType || !file) {
-      alert('Please select document type and file')
+      alert("Please select document type and file")
       return
     }
 
@@ -66,43 +95,92 @@ export default function VisitorDocumentUpload() {
       setLoading(true)
 
       const formData = new FormData()
-      formData.append('visitor_id', id)
-      formData.append('doc_type', docType)
-      formData.append('doc_number', docNumber)
-      formData.append('expiry_date', expiryDate)
-
-      formData.append('file', file)
+      formData.append("visitor_id", id)
+      formData.append("doc_type", docType)
+      formData.append("doc_number", docNumber)
+      formData.append("expiry_date", expiryDate)
+      formData.append("file", file)
 
       await uploadVisitorDocument(id, formData)
 
-      navigate(`/visitors/${id}`)
+      setDocType("")
+      setDocNumber("")
+      setExpiryDate("")
+      setFile(null)
+
+      loadDocuments()
+
     } catch (err) {
       console.error(err)
-      alert('Document upload failed')
+      alert("Document upload failed")
     } finally {
       setLoading(false)
     }
   }
 
+  const handleExtend = async (docId) => {
+    if (!newExpiry) {
+      alert("Select new expiry date")
+      return
+    }
+
+    try {
+      await extendVisitorDocument(docId, newExpiry)
+
+      setEditDocId(null)
+      setNewExpiry("")
+
+      loadDocuments()
+    } catch (err) {
+      console.error(err)
+    }
+  }
+
+  const handleDelete = async (docId) => {
+    if (!window.confirm("Delete this document?")) return
+
+    try {
+      await deleteVisitorDocument(docId)
+      loadDocuments()
+    } catch (err) {
+      console.error(err)
+    }
+  }
+
+  if (!allowEdit) {
+    return (
+      <Paper sx={{ p: 3, maxWidth: 600, mx: "auto" }}>
+        <Alert severity="warning">
+          You do not have permission to upload documents.
+        </Alert>
+      </Paper>
+    )
+  }
+
   return (
     <Box>
-      <Paper sx={{ p: 3, mb: 2 }}>
+
+      {/* Header */}
+
+      <Paper sx={{ p: 3, mb: 3 }}>
         <Typography variant="h5" fontWeight={600}>
-          Upload Visitor Document
+          Visitor Documents
         </Typography>
         <Typography color="text.secondary">
           Visitor ID: {id}
         </Typography>
       </Paper>
 
-      <Paper sx={{ p: 3 }}>
-        <Typography variant="h6" gutterBottom>
-          Document Details
-        </Typography>
-        <Divider sx={{ mb: 2 }} />
+      {/* Upload Section */}
+
+      <Paper sx={{ p: 3, mb: 3 }}>
+        <Typography variant="h6">Upload New Document</Typography>
+
+        <Divider sx={{ my: 2 }} />
 
         <Grid container spacing={2}>
-          <Grid item xs={12} md={6}>
+
+          <Grid size={{ xs: 12, md: 6 }}>
             <TextField
               select
               fullWidth
@@ -118,7 +196,7 @@ export default function VisitorDocumentUpload() {
             </TextField>
           </Grid>
 
-          <Grid item xs={12} md={6}>
+          <Grid size={{ xs: 12, md: 6 }}>
             <TextField
               fullWidth
               label="Document Number"
@@ -127,7 +205,7 @@ export default function VisitorDocumentUpload() {
             />
           </Grid>
 
-          <Grid item xs={12} md={6}>
+          <Grid size={{ xs: 12, md: 6 }}>
             <TextField
               type="date"
               fullWidth
@@ -138,38 +216,137 @@ export default function VisitorDocumentUpload() {
             />
           </Grid>
 
-          <Grid item xs={12}>
+          <Grid size={{ xs: 12 }}>
             <Button variant="contained" component="label">
-              Select File(s)
-              <input hidden type="file" onChange={handleFileChange} />
+              Select File
+              <input hidden type="file" onChange={(e) => setFile(e.target.files?.[0])} />
             </Button>
           </Grid>
+
         </Grid>
 
         {file && (
           <Box mt={2}>
-            <Typography variant="subtitle2">Selected Files:</Typography>
-            <Stack direction="row" flexWrap="wrap" gap={1} mt={1}>
-              <Chip label={file.name} />
-            </Stack>
+            <Chip label={file.name} />
           </Box>
         )}
 
-        <Divider sx={{ my: 3 }} />
-
-        <Box display="flex" justifyContent="flex-end" gap={2}>
-          <Button variant="outlined" onClick={() => navigate(-1)}>
-            Cancel
-          </Button>
+        <Box mt={3} display="flex" justifyContent="flex-end">
           <Button
             variant="contained"
-            onClick={handleSubmit}
+            onClick={handleUpload}
             disabled={loading}
           >
-            {loading ? <CircularProgress size={20} /> : 'Upload Document'}
+            {loading ? <CircularProgress size={20} /> : "Upload Document"}
           </Button>
         </Box>
+
       </Paper>
+
+      {/* Documents Table */}
+
+      <Paper sx={{ p: 3 }}>
+
+        <Typography variant="h6">Uploaded Documents</Typography>
+
+        <Divider sx={{ my: 2 }} />
+
+        <Table size="small">
+
+          <TableHead>
+            <TableRow>
+              <TableCell>Type</TableCell>
+              <TableCell>Number</TableCell>
+              <TableCell>Expiry</TableCell>
+              <TableCell width={140}>Actions</TableCell>
+            </TableRow>
+          </TableHead>
+
+          <TableBody>
+
+            {documents.length === 0 && (
+              <TableRow>
+                <TableCell colSpan={4} align="center">
+                  No documents uploaded
+                </TableCell>
+              </TableRow>
+            )}
+
+            {documents.map((doc) => (
+              <TableRow key={doc.id}>
+
+                <TableCell>{doc.doc_type}</TableCell>
+                <TableCell>{doc.doc_number}</TableCell>
+
+                <TableCell>
+
+                  {editDocId === doc.id ? (
+
+                    <Stack direction="row" spacing={1}>
+
+                      <TextField
+                        type="date"
+                        size="small"
+                        value={newExpiry}
+                        onChange={(e) => setNewExpiry(e.target.value)}
+                      />
+
+                      <Button
+                        size="small"
+                        variant="contained"
+                        onClick={() => handleExtend(doc.id)}
+                      >
+                        Save
+                      </Button>
+
+                    </Stack>
+
+                  ) : (
+                    doc.expiry_date
+                  )}
+
+                </TableCell>
+
+                <TableCell>
+
+                  <Stack direction="row" spacing={1}>
+
+                    <Tooltip title="Extend Validity">
+                      <IconButton
+                        color="primary"
+                        size="small"
+                        onClick={() => {
+                          setEditDocId(doc.id)
+                          setNewExpiry(doc.expiry_date)
+                        }}
+                      >
+                        <EditIcon />
+                      </IconButton>
+                    </Tooltip>
+
+                    <Tooltip title="Delete Document">
+                      <IconButton
+                        color="error"
+                        size="small"
+                        onClick={() => handleDelete(doc.id)}
+                      >
+                        <DeleteIcon />
+                      </IconButton>
+                    </Tooltip>
+
+                  </Stack>
+
+                </TableCell>
+
+              </TableRow>
+            ))}
+
+          </TableBody>
+
+        </Table>
+
+      </Paper>
+
     </Box>
   )
 }

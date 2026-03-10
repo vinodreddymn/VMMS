@@ -396,7 +396,7 @@ export default function VisitorsDetail() {
   variant="contained"
   onClick={()=>navigate(`/visitors/${id}/upload-document`)}
   >
-  Upload Document
+  Upload / Edit Documents
   </Button>
 
   </Stack>

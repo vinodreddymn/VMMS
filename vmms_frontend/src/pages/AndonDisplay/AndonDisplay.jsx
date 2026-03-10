@@ -26,7 +26,7 @@ const REFRESH = {
   EVENTS: 10000
 }
 
-const EVENT_POPUP_DURATION = 6000
+const EVENT_POPUP_DURATION = 16000
 const todayISO = () => new Date().toLocaleDateString("en-CA")
 
 /* ------------------------------------------------ */

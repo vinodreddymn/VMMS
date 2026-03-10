@@ -19,6 +19,14 @@ export const uploadVisitorDocument = (visitorId, formData) =>
   api.post(`/visitors/${visitorId}/documents`, formData, {
     headers: { 'Content-Type': 'multipart/form-data' }
   })
+export const getVisitorDocuments = (visitorId) =>
+  api.get(`/visitors/${visitorId}/documents`)
+
+export const extendVisitorDocument = (docId, expiry_date) =>
+  api.put(`/visitors/visitor-documents/${docId}/extend`, { expiry_date })
+
+export const deleteVisitorDocument = (docId) =>
+  api.delete(`/visitors/visitor-documents/${docId}`)
 
 export const issueRFIDCard = (visitorIdOrPayload, data) => {
   let visitorId = visitorIdOrPayload

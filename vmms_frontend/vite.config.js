@@ -9,7 +9,9 @@ const certPath = path.join(certDir, 'localhost.pem')
 const hasHttpsCerts = fs.existsSync(keyPath) && fs.existsSync(certPath)
 
 export default defineConfig({
+  base: "/",   // ⭐ IMPORTANT FOR NGINX
   plugins: [react()],
+
   server: {
     host: true,
     port: 5173,
@@ -20,4 +22,9 @@ export default defineConfig({
         }
       : false,
   },
+
+  build: {
+    outDir: "dist",
+    assetsDir: "assets"
+  }
 })
