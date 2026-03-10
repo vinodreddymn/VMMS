@@ -21,7 +21,6 @@ Thumbs.db
 
 # Backend folders
 vmms_backend/uploads/
-vmms_backend/exports/
 
 # Frontend
 vmms_frontend/certs/
