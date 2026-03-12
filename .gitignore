@@ -7,8 +7,8 @@ vmms_backend/node_modules/
 
 
 # Build folders
-dist/
-build/
+vmms_frontend/dist/
+vmms_frontend/build/
 
 # Logs
 logs
