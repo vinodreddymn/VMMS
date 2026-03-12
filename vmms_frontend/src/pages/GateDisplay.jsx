@@ -19,11 +19,13 @@ import Grid from '@mui/material/Grid'
 import CameraAltIcon from '@mui/icons-material/CameraAlt'
 import api from '../api/axios'
 import { getMasters } from '../api/master.api'
+import AndonHeader from '../components/andon/AndonHeader'
 
 const LOCAL_GATE_KEY = 'gateDisplay.selectedGateId'
 const STAFF_CODE = import.meta.env.VITE_GATE_SETUP_CODE || 'VMMS-STAFF'
 
 export default function GateDisplay() {
+  const [now, setNow] = useState(new Date())
   const [gates, setGates] = useState([])
   const [gateId, setGateId] = useState(null)
   const [gatesLoading, setGatesLoading] = useState(false)
@@ -41,6 +43,12 @@ export default function GateDisplay() {
   const canvasRef = useRef(null)
   const streamRef = useRef(null)
   const inputRef = useRef(null)
+
+  /* ---------------- CLOCK ---------------- */
+  useEffect(() => {
+    const t = setInterval(() => setNow(new Date()), 1000)
+    return () => clearInterval(t)
+  }, [])
 
   /* ---------------- CAMERA & GATE INIT ---------------- */
   useEffect(() => {
@@ -308,6 +316,13 @@ export default function GateDisplay() {
     return d.toLocaleString()
   }
 
+  const headerDate = now.toLocaleDateString('en-IN', {
+    weekday: 'short',
+    day: '2-digit',
+    month: 'long',
+    year: 'numeric'
+  })
+
   /* ---------------- RENDER ---------------- */
   const renderGateSelector = () => (
     <Box
@@ -361,20 +376,18 @@ export default function GateDisplay() {
   }
 
   return (
-    <Box
-      sx={{
-        minHeight: '100vh',
-        color: '#0f172a',
-        background:
-          'radial-gradient(1200px 600px at 10% 0%, rgba(16,185,129,0.12), transparent 60%), radial-gradient(900px 500px at 90% 0%, rgba(244,114,182,0.12), transparent 55%), linear-gradient(180deg, #f8fafc 0%, #eef2f7 60%, #e5e7eb 100%)',
-      }}
-    >
+    <Box sx={styles.root}>
       {/* HIDDEN VIDEO STREAM FOR CAPTURE ONLY */}
       <video ref={videoRef} autoPlay playsInline style={{ display: 'none' }} />
+
+      <Box sx={styles.headerWrap}>
+        <AndonHeader now={now} headerDate={headerDate} />
+      </Box>
 
       {/* STATUS BANNER */}
       <Box
         sx={{
+          ...styles.banner,
           background: errorMessage
             ? 'linear-gradient(90deg, #f59e0b 0%, #f97316 100%)'
             : currentAccess
@@ -382,75 +395,65 @@ export default function GateDisplay() {
               ? 'linear-gradient(90deg, #10b981 0%, #22c55e 100%)'
               : 'linear-gradient(90deg, #ef4444 0%, #f97316 100%)'
             : 'linear-gradient(90deg, #0f172a 0%, #1f2937 100%)',
-          textAlign: 'center',
-          color: '#ffffff',
-          py: { xs: 2, md: 2.5 },
-          transition: 'all 0.3s ease',
-          boxShadow: '0 12px 30px rgba(15,23,42,0.2)',
         }}
       >
-        <Typography variant="h4" fontWeight={800} letterSpacing={1}>
-          {errorMessage
-            ? 'ACCESS DENIED'
-            : currentAccess
-            ? currentAccess.direction === 'IN'
-              ? 'ENTRY AUTHORIZED'
-              : 'EXIT AUTHORIZED'
-            : 'READY FOR RFID'}
-        </Typography>
-        <Typography variant="body1" sx={{ opacity: 0.95 }}>
-          {successMessage ||
-            errorMessage ||
-            (currentGate ? `Tap RFID card or enter UID at ${currentGate.gate_name}` : 'Select a gate to begin')}
-        </Typography>
-        <Box sx={{ mt: 1, display: 'flex', justifyContent: 'center', gap: 1 }}>
-          {currentGate && (
-            <Chip
-              label={`Gate: ${currentGate.gate_name}`}
-              color="info"
-              variant="outlined"
-              size="small"
-            />
-          )}
-            <Button variant="text" size="small" color="inherit" onClick={requestGateChange} sx={{ opacity: 0.8, textDecoration: 'underline' }}>
-              Change gate (staff)
-            </Button>
+        <Box>
+          <Typography sx={styles.bannerTitle}>
+            {errorMessage
+              ? 'ACCESS DENIED'
+              : currentAccess
+              ? currentAccess.direction === 'IN'
+                ? 'ENTRY AUTHORIZED'
+                : 'EXIT AUTHORIZED'
+              : 'READY FOR RFID'}
+          </Typography>
+          <Typography sx={styles.bannerSubtitle}>
+            {successMessage ||
+              errorMessage ||
+              (currentGate ? `Tap RFID card or enter UID at ${currentGate.gate_name}` : 'Select a gate to begin')}
+          </Typography>
         </Box>
+        <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" justifyContent="flex-end">
+          {currentGate && <Chip label={currentGate.gate_name} color="primary" variant="outlined" />}
+          <Chip label={`Gate ID: ${gateId || 'N/A'}`} variant="outlined" />
+          <Chip
+            label={currentGate?.is_active ? 'Active' : 'Inactive'}
+            color={currentGate?.is_active ? 'success' : 'default'}
+            variant="outlined"
+          />
+          <Button variant="text" size="small" color="inherit" onClick={requestGateChange} sx={{ textDecoration: 'underline' }}>
+            Change gate (staff)
+          </Button>
+        </Stack>
       </Box>
 
       <Box sx={{ px: { xs: 2, md: 3 }, py: { xs: 2, md: 3 } }}>
         <Grid container spacing={2} alignItems="stretch">
-          {/* LEFT: INPUT + (INSTRUCTIONS ONLY BEFORE SCAN) */}
+          {/* LEFT: INPUT + INSTRUCTIONS */}
           <Grid size={{ xs: 12, md: 4, lg: 3 }}>
-            <Paper
-              sx={{
-                p: 3,
-                bgcolor: '#ffffff',
-                borderRadius: 3,
-                border: '1px solid rgba(15,23,42,0.08)',
-                boxShadow: '0 16px 40px rgba(15,23,42,0.08)',
-                height: '100%',
-              }}
-            >
-              <Typography variant="overline" sx={{ color: '#0ea5e9', fontWeight: 700, letterSpacing: 2 }}>
+            <Paper sx={styles.cardLight}>
+              <Typography variant="overline" sx={{ color: '#0ea5e9', fontWeight: 700, letterSpacing: 2, display: 'block', mb: 1 }}>
                 Gate Console
               </Typography>
 
-              {currentGate ? (
-                <Stack direction="row" spacing={1} sx={{ flexWrap: 'wrap', mb: 2 }}>
-                  <Chip label={currentGate.gate_name} color="primary" />
-                  <Chip label={currentGate.ip_address || 'No IP'} />
-                  <Chip label={currentGate.device_serial || 'No Device'} />
-                  <Chip
-                    label={currentGate.is_active ? 'Active' : 'Inactive'}
-                    color={currentGate.is_active ? 'success' : 'default'}
-                  />
-                </Stack>
-              ) : (
-                <Alert severity="info" sx={{ mb: 2 }}>
-                  {gatesLoading ? 'Loading gates…' : 'No gates found. Please add a gate in Admin > Gates.'}
-                </Alert>
-              )}
+              <Stack spacing={1} sx={{ mb: 2 }}>
+                {currentGate ? (
+                  <>
+                    <Chip label={currentGate.gate_name} color="primary" />
+                    <Chip label={currentGate.ip_address || 'No IP'} variant="outlined" />
+                    <Chip label={currentGate.device_serial || 'No Device'} variant="outlined" />
+                    <Chip
+                      label={currentGate.is_active ? 'Active' : 'Inactive'}
+                      color={currentGate.is_active ? 'success' : 'default'}
+                      variant="outlined"
+                    />
+                  </>
+                ) : (
+                  <Alert severity="info">
+                    {gatesLoading ? 'Loading gates…' : 'No gates found. Please add a gate in Admin > Gates.'}
+                  </Alert>
+                )}
+              </Stack>
               {!currentAccess && (
                 <>
                   <Typography variant="h5" fontWeight={800} gutterBottom>
@@ -492,17 +495,8 @@ export default function GateDisplay() {
           </Grid>
 
           {/* CENTER: PHOTOS + STATUS */}
-          <Grid size={{ xs: 12, md: 5, lg: 6 }}>
-            <Paper
-              sx={{
-                p: 3,
-                bgcolor: '#ffffff',
-                borderRadius: 3,
-                border: '1px solid rgba(15,23,42,0.08)',
-                boxShadow: '0 16px 40px rgba(15,23,42,0.08)',
-                height: '100%',
-              }}
-            >
+          <Grid size={{ xs: 12, md: 5, lg: 5 }}>
+            <Paper sx={styles.cardLight}>
               {!currentAccess ? (
                 <Stack spacing={2} alignItems="center" sx={{ mt: 6, color: '#0f172a' }}>
                   <CameraAltIcon sx={{ fontSize: 54, opacity: 0.5 }} />
@@ -525,9 +519,9 @@ export default function GateDisplay() {
                     <Chip label={currentAccess.person_type} color="info" />
                   </Box>
 
-                  <Box display="flex" gap={2}>
-                    <Box sx={{ flex: 1 }}>
-                      <Typography variant="caption">Registered Photo</Typography>
+                  <Box display="flex" gap={2} flexWrap="wrap">
+                    <Box sx={{ flex: 1, minWidth: 220 }}>
+                      <Typography variant="caption" sx={{ fontWeight: 700, color: '#475569' }}>Registered Photo</Typography>
                       <Box
                         component="img"
                         src={resolvePhoto(registeredPhoto)}
@@ -542,8 +536,8 @@ export default function GateDisplay() {
                         }}
                       />
                     </Box>
-                    <Box sx={{ flex: 1 }}>
-                      <Typography variant="caption">Captured Photo</Typography>
+                    <Box sx={{ flex: 1, minWidth: 220 }}>
+                      <Typography variant="caption" sx={{ fontWeight: 700, color: '#475569' }}>Captured Photo</Typography>
                       <Box
                         component="img"
                         src={livePhoto || ''}
@@ -565,18 +559,8 @@ export default function GateDisplay() {
           </Grid>
 
           {/* RIGHT: DETAILS STRIP */}
-          <Grid size={{ xs: 12, md: 3, lg: 3 }}>
-            <Paper
-              sx={{
-                p: 3,
-                bgcolor: '#0f172a',
-                color: '#e2e8f0',
-                borderRadius: 3,
-                border: '1px solid rgba(15,23,42,0.15)',
-                boxShadow: '0 16px 40px rgba(15,23,42,0.15)',
-                height: '100%',
-              }}
-            >
+          <Grid size={{ xs: 12, md: 3, lg: 4 }}>
+            <Paper sx={styles.cardDark}>
               <Typography variant="h6" fontWeight={700} gutterBottom>
                 Details
               </Typography>
@@ -591,7 +575,7 @@ export default function GateDisplay() {
                   <Typography>Token UID: {currentAccess.rfid_uid}</Typography>
                 </Stack>
               ) : (
-                <Stack spacing={1}>
+                <Stack spacing={1.2}>
                   <Typography>Aadhaar (Last 4): {currentAccess.aadhaar_last4}</Typography>
                   <Typography>Project: {currentAccess.project_name}</Typography>
                   <Typography>Department: {currentAccess.department_name}</Typography>
@@ -621,4 +605,181 @@ export default function GateDisplay() {
       <canvas ref={canvasRef} style={{ display: 'none' }} />
     </Box>
   )
+}
+
+/* ---------------- STYLES ---------------- */
+const styles = {
+  root: {
+    height: '100vh',
+    width: '100vw',
+    overflow: 'hidden',
+    color: '#0f172a',
+
+    background:
+      'radial-gradient(1200px 600px at 10% 0%, rgba(59,130,246,0.18), transparent 60%), radial-gradient(900px 520px at 90% 10%, rgba(16,185,129,0.16), transparent 55%), linear-gradient(180deg, #0a0f24 0%, #0b1c38 60%, #0b2448 100%)',
+
+    padding: '10px 14px',
+    display: 'flex',
+    flexDirection: 'column',
+  },
+
+  /* HEADER */
+
+  headerWrap: {
+    width: '100%',
+    maxWidth: '1840px',
+    margin: '0 auto',
+    height: '70px',
+    flexShrink: 0,
+  },
+
+  banner: {
+    height: '70px',
+    borderRadius: 12,
+
+    padding: '0 18px',
+
+    color: '#fff',
+
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+
+    background:
+      'linear-gradient(135deg, rgba(30,41,59,0.95), rgba(15,23,42,0.95))',
+
+    border: '1px solid rgba(255,255,255,0.08)',
+
+    boxShadow: '0 8px 22px rgba(0,0,0,0.35)',
+  },
+
+  bannerTitle: {
+    fontWeight: 800,
+    fontSize: 22,
+    letterSpacing: 1,
+    textTransform: 'uppercase',
+  },
+
+  bannerSubtitle: {
+    fontSize: 12,
+    opacity: 0.85,
+  },
+
+  /* MAIN CONTENT AREA */
+
+  content: {
+    flex: 1,
+    maxWidth: '1840px',
+    margin: '10px auto 0 auto',
+    display: 'flex',
+    flexDirection: 'column',
+    justifyContent: 'space-between',
+  },
+
+  /* GRID ROW */
+
+  gridRow: {
+    height: 'calc(100vh - 120px)', // header + margins
+    display: 'grid',
+    gridTemplateColumns: '1.2fr 1fr 1fr',
+    gap: '14px',
+  },
+
+  /* CARDS */
+
+  cardLight: {
+    padding: '16px',
+    background: 'rgba(255,255,255,0.96)',
+    borderRadius: 12,
+    border: '1px solid rgba(15,23,42,0.08)',
+    boxShadow: '0 10px 26px rgba(15,23,42,0.10)',
+    height: '100%',
+    overflow: 'hidden',
+  },
+
+  cardDark: {
+    padding: '16px',
+    background: 'rgba(12,18,40,0.92)',
+    color: '#e2e8f0',
+    borderRadius: 12,
+    border: '1px solid rgba(148,163,184,0.18)',
+    boxShadow: '0 10px 28px rgba(0,0,0,0.45)',
+    height: '100%',
+    overflow: 'hidden',
+  },
+
+  /* CAMERA PANEL */
+
+  cameraPanel: {
+    height: '100%',
+    borderRadius: 10,
+    overflow: 'hidden',
+    background: '#000',
+    border: '2px solid rgba(255,255,255,0.12)',
+  },
+
+  /* VISITOR PHOTO */
+
+  visitorPhoto: {
+    width: 130,
+    height: 130,
+    borderRadius: 10,
+    objectFit: 'cover',
+    border: '3px solid #22c55e',
+  },
+
+  /* STATUS BOX */
+
+  statusBox: {
+    padding: '12px',
+    borderRadius: 10,
+    fontSize: 16,
+    fontWeight: 700,
+    textAlign: 'center',
+  },
+
+  statusSuccess: {
+    background: 'linear-gradient(135deg,#16a34a,#22c55e)',
+    color: '#fff',
+  },
+
+  statusWarning: {
+    background: 'linear-gradient(135deg,#f59e0b,#fbbf24)',
+    color: '#000',
+  },
+
+  statusError: {
+    background: 'linear-gradient(135deg,#dc2626,#ef4444)',
+    color: '#fff',
+  },
+
+  /* ENTRY / EXIT INDICATOR */
+
+  gateIndicator: {
+    fontSize: 36,
+    fontWeight: 900,
+    letterSpacing: 2,
+    textAlign: 'center',
+    padding: '8px',
+    borderRadius: 10,
+    background:
+      'linear-gradient(135deg, rgba(59,130,246,0.95), rgba(37,99,235,0.95))',
+    color: '#fff',
+  },
+
+  /* FOOTER */
+
+  footerBar: {
+    height: '36px',
+    marginTop: '6px',
+    padding: '6px 14px',
+    borderRadius: 8,
+    background: 'rgba(15,23,42,0.85)',
+    color: '#e2e8f0',
+    fontSize: 12,
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    flexShrink: 0,
+  },
 }
