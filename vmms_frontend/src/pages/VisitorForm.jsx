@@ -68,7 +68,11 @@ export default function VisitorsForm() {
     can_register_labours: false,
     valid_from: '',
     valid_to: '',
-    allowed_gates: []
+    allowed_gates: [],
+    vehicle_number: '',
+    vehicle_make: '',
+    vehicle_model: '',
+    vehicle_color: ''
   })
 
 
@@ -167,23 +171,27 @@ export default function VisitorsForm() {
           if (val === 'true' || val === 't' || val === 1 || val === '1') return true
           return false
         }
-        setForm((prev) => ({
-          ...prev,
-          ...v,
+  setForm((prev) => ({
+    ...prev,
+    ...v,
           aadhaar: '',
           date_of_birth: toDate(v.date_of_birth),
           work_order_expiry: toDate(v.work_order_expiry),
           pvc_expiry: toDate(v.pvc_expiry),
           smartphone_expiry: toDate(v.smartphone_expiry),
-          laptop_expiry: toDate(v.laptop_expiry),
-          valid_from: toDate(v.valid_from),
-          valid_to: toDate(v.valid_to),
-          smartphone_allowed: toBool(v.smartphone_allowed),
-          laptop_allowed: toBool(v.laptop_allowed),
-          ops_area_permitted: toBool(v.ops_area_permitted),
-          can_register_labours: toBool(v.can_register_labours),
-          allowed_gates: (res?.data?.allowed_gates || []).map((g) => Number(g)),
-        }))
+    laptop_expiry: toDate(v.laptop_expiry),
+    valid_from: toDate(v.valid_from),
+    valid_to: toDate(v.valid_to),
+    smartphone_allowed: toBool(v.smartphone_allowed),
+    laptop_allowed: toBool(v.laptop_allowed),
+    ops_area_permitted: toBool(v.ops_area_permitted),
+    can_register_labours: toBool(v.can_register_labours),
+    vehicle_number: v.vehicle_number || '',
+    vehicle_make: v.vehicle_make || '',
+    vehicle_model: v.vehicle_model || '',
+    vehicle_color: v.vehicle_color || '',
+    allowed_gates: (res?.data?.allowed_gates || []).map((g) => Number(g)),
+  }))
       } catch (err) {
         console.error('Failed to load visitor', err)
       } finally {
@@ -402,7 +410,13 @@ export default function VisitorsForm() {
   select
   label="Project"
   name="project_id"
-  value={form.project_id}
+  value={
+    mastersLoading
+      ? ''
+      : filteredProjects.some((p) => String(p.id) === String(form.project_id))
+      ? form.project_id
+      : ''
+  }
   onChange={handleChange}
   disabled={!form.department_id}
   >
@@ -418,7 +432,13 @@ export default function VisitorsForm() {
   select
   label="Host"
   name="host_id"
-  value={form.host_id}
+  value={
+    mastersLoading
+      ? ''
+      : filteredHosts.some((h) => String(h.id) === String(form.host_id))
+      ? form.host_id
+      : ''
+  }
   onChange={handleChange}
   disabled={!form.project_id}
   >
@@ -530,6 +550,21 @@ export default function VisitorsForm() {
   <Field fullWidth label="Temporary Address" name="temp_address" value={form.temp_address} onChange={handleChange}/>
 
   <Field fullWidth label="Permanent Address" name="perm_address" value={form.perm_address} onChange={handleChange}/>
+
+  </Grid>
+
+  </SectionCard>
+
+  {/* ================= VEHICLE DETAILS ================= */}
+
+  <SectionCard title="Vehicle Details">
+
+  <Grid container spacing={2}>
+
+  <Field label="Vehicle Number" name="vehicle_number" value={form.vehicle_number} onChange={handleChange}/>
+  <Field label="Make" name="vehicle_make" value={form.vehicle_make} onChange={handleChange}/>
+  <Field label="Model" name="vehicle_model" value={form.vehicle_model} onChange={handleChange}/>
+  <Field label="Color" name="vehicle_color" value={form.vehicle_color} onChange={handleChange}/>
 
   </Grid>
 

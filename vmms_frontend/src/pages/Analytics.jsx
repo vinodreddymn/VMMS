@@ -19,8 +19,11 @@ import {
   Alert,
   CircularProgress,
   Tabs,
-  Tab
+  Tab,
+  IconButton,
+  Tooltip
 } from '@mui/material'
+import DownloadIcon from '@mui/icons-material/Download'
 import TrendingUpIcon from '@mui/icons-material/TrendingUp'
 import SecurityIcon from '@mui/icons-material/Security'
 import WarningIcon from '@mui/icons-material/Warning'
@@ -43,6 +46,7 @@ export default function Analytics() {
   const [visitorTrends, setVisitorTrends] = useState([])
   const [materialAnalytics, setMaterialAnalytics] = useState([])
   const [labourAnalytics, setLabourAnalytics] = useState([])
+  const [riskSearch, setRiskSearch] = useState('')
 
   function getDefaultFromDate() {
     const d = new Date()
@@ -59,10 +63,10 @@ export default function Analytics() {
     setError('')
     try {
       const [daily, peaks, gates, risks, trends, materials, labours] = await Promise.all([
-        analyticsApi.getDailyStats(toDate).catch(() => ({})),
+        analyticsApi.getDailyStats(fromDate, toDate).catch(() => ({})),
         analyticsApi.getPeakHours(fromDate, toDate).catch(() => ({ data: { peakHours: [] } })),
         analyticsApi.getGatePerformance(fromDate, toDate).catch(() => ({ data: { gatePerformance: [] } })),
-        analyticsApi.getRiskScores(50).catch(() => ({ data: { riskScores: [] } })),
+        analyticsApi.getRiskScores(50, fromDate, toDate).catch(() => ({ data: { riskScores: [] } })),
         analyticsApi.getVisitorTrends(fromDate, toDate).catch(() => ({ data: { trends: [] } })),
         analyticsApi.getMaterialAnalytics(fromDate, toDate).catch(() => ({ data: { materialAnalytics: [] } })),
         analyticsApi.getLabourAnalytics(fromDate, toDate).catch(() => ({ data: { labourAnalytics: [] } }))
@@ -86,10 +90,46 @@ export default function Analytics() {
     fetchAnalytics()
   }, [fromDate, toDate])
 
+  const gateSummary = useMemo(() => {
+    if (!gatePerformance.length) return { total: 0, failed: 0, successRate: 0, busiest: null }
+    const total = gatePerformance.reduce((sum, g) => sum + Number(g.total_scans || 0), 0)
+    const failed = gatePerformance.reduce((sum, g) => sum + Number(g.failed_scans || 0), 0)
+    const success = gatePerformance.reduce((sum, g) => sum + Number(g.successful_scans || 0), 0)
+    const successRate = total ? Math.round((success / total) * 100) : 0
+    const busiest = [...gatePerformance].sort((a, b) => (b.total_scans || 0) - (a.total_scans || 0))[0]
+    return { total, failed, successRate, busiest }
+  }, [gatePerformance])
+
+  const peakHighlight = useMemo(() => {
+    if (!peakHours.length) return null
+    return [...peakHours].sort((a, b) => (b.total_scans || 0) - (a.total_scans || 0))[0]
+  }, [peakHours])
+
+  const criticalRiskCount = useMemo(
+    () => riskScores.filter((r) => ['HIGH', 'CRITICAL'].includes((r.risk_level || '').toUpperCase())).length,
+    [riskScores]
+  )
+
+  const materialAlerts = useMemo(
+    () => materialAnalytics.filter((m) => ['CRITICAL', 'LOW'].includes((m.stock_status || '').toUpperCase())),
+    [materialAnalytics]
+  )
+
+  const filteredRiskScores = useMemo(() => {
+    if (!riskSearch.trim()) return riskScores
+    const q = riskSearch.toLowerCase()
+    return riskScores.filter(
+      (r) =>
+        (r.full_name || '').toLowerCase().includes(q) ||
+        (r.primary_phone || '').toLowerCase().includes(q) ||
+        (r.project_name || '').toLowerCase().includes(q)
+    )
+  }, [riskScores, riskSearch])
+
   if (loading && !dailyStats) return <Loader />
 
   return (
-    <Container maxWidth="xl" sx={{ py: 3 }}>
+    <Container maxWidth="xxl" sx={{ py: 3 }}>
       {/* Header */}
       <Box sx={{ mb: 3, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 2 }}>
         <Typography variant="h4" fontWeight={700}>
@@ -118,19 +158,55 @@ export default function Analytics() {
 
       {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
 
+      {/* Security Highlights */}
+      <Grid container spacing={2} sx={{ mb: 3 }}>
+        <Grid size={{ xs: 12, md: 3 }}>
+          <HighlightCard
+            title="Access Success Rate"
+            value={`${gateSummary.successRate || 0}%`}
+            helper={`${gateSummary.total.toLocaleString()} scans`}
+            tone="success"
+          />
+        </Grid>
+        <Grid size={{ xs: 12, md: 3 }}>
+          <HighlightCard
+            title="Busiest Gate"
+            value={gateSummary.busiest?.gate_name || '—'}
+            helper={gateSummary.busiest ? `${gateSummary.busiest.total_scans} scans` : 'No traffic'}
+            tone="info"
+          />
+        </Grid>
+        <Grid size={{ xs: 12, md: 3 }}>
+          <HighlightCard
+            title="Peak Hour"
+            value={peakHighlight ? `${String(peakHighlight.hour).padStart(2, '0')}:00` : '—'}
+            helper={peakHighlight ? `${peakHighlight.total_scans} scans` : 'No data'}
+            tone="warning"
+          />
+        </Grid>
+        <Grid size={{ xs: 12, md: 3 }}>
+          <HighlightCard
+            title="Alerts & Risks"
+            value={`${criticalRiskCount} high-risk / ${materialAlerts.length} stock alerts`}
+            helper="Monitor immediately"
+            tone="error"
+          />
+        </Grid>
+      </Grid>
+
       {/* KPI Cards */}
       <Grid container spacing={2} sx={{ mb: 3 }}>
         <Grid size={{ xs: 12, md: 3 }}>
-          <KpiCard label="Total Entries" value={dailyStats?.total_entries || 0} icon={<TrendingUpIcon />} color="#2196F3" />
+          <KpiCard label="Entry Scans" value={dailyStats?.total_entry_scans || 0} icon={<TrendingUpIcon />} color="#2196F3" />
         </Grid>
         <Grid size={{ xs: 12, md: 3 }}>
-          <KpiCard label="Total Exits" value={dailyStats?.total_exits || 0} icon={<TrendingUpIcon />} color="#4CAF50" />
+          <KpiCard label="Exit Scans" value={dailyStats?.total_exit_scans || 0} icon={<TrendingUpIcon />} color="#4CAF50" />
         </Grid>
         <Grid size={{ xs: 12, md: 3 }}>
-          <KpiCard label="Labour Entries" value={dailyStats?.labour_entries || 0} icon={<BuildIcon />} color="#FF9800" />
+          <KpiCard label="Labour Entries" value={dailyStats?.labour_entry_scans || 0} icon={<BuildIcon />} color="#FF9800" />
         </Grid>
         <Grid size={{ xs: 12, md: 3 }}>
-          <KpiCard label="Visitor Entries" value={dailyStats?.visitor_entries || 0} icon={<TrendingUpIcon />} color="#9C27B0" />
+          <KpiCard label="Visitor Entries" value={dailyStats?.visitor_entry_scans || 0} icon={<TrendingUpIcon />} color="#9C27B0" />
         </Grid>
       </Grid>
 
@@ -240,9 +316,31 @@ export default function Analytics() {
       {/* Gate Performance Tab */}
       {tabValue === 1 && (
         <Paper sx={{ p: 2 }}>
-          <Typography variant="h6" fontWeight={600} mb={2}>
-            Gate Performance & Health
-          </Typography>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2, flexWrap: 'wrap', gap: 1.5 }}>
+            <Typography variant="h6" fontWeight={600}>
+              Gate Performance & Health
+            </Typography>
+            <Button
+              size="small"
+              variant="outlined"
+              startIcon={<DownloadIcon />}
+              disabled={!gatePerformance.length}
+              onClick={() =>
+                exportCsv(gatePerformance, [
+                  { key: 'gate_name', label: 'Gate' },
+                  { key: 'entrance_name', label: 'Entrance' },
+                  { key: 'total_scans', label: 'Total Scans' },
+                  { key: 'successful_scans', label: 'Success' },
+                  { key: 'failed_scans', label: 'Failed' },
+                  { key: 'success_rate', label: 'Success Rate' },
+                  { key: 'error_codes', label: 'Error Codes' },
+                  { key: 'last_activity', label: 'Last Activity' },
+                ], `gate_performance_${fromDate}_${toDate}.csv`)
+              }
+            >
+              Export CSV
+            </Button>
+          </Box>
           <TableContainer>
             <Table size="small">
               <TableHead>
@@ -296,10 +394,44 @@ export default function Analytics() {
       {/* Risk & Security Tab */}
       {tabValue === 2 && (
         <Paper sx={{ p: 2 }}>
-          <Typography variant="h6" fontWeight={600} mb={2}>
-            <SecurityIcon sx={{ mr: 1, verticalAlign: 'middle' }} />
-            High-Risk Visitors
-          </Typography>
+          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2, gap: 2, flexWrap: 'wrap' }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+              <SecurityIcon sx={{ color: '#ef4444' }} />
+              <Typography variant="h6" fontWeight={600}>
+                High-Risk Visitors
+              </Typography>
+            </Box>
+            <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', alignItems: 'center' }}>
+              <TextField
+                size="small"
+                placeholder="Filter by name, phone, project"
+                value={riskSearch}
+                onChange={(e) => setRiskSearch(e.target.value)}
+              />
+              <Tooltip title="Export CSV">
+                <span>
+                  <IconButton
+                    color="primary"
+                    onClick={() =>
+                      exportCsv(filteredRiskScores, [
+                        { key: 'full_name', label: 'Name' },
+                        { key: 'primary_phone', label: 'Phone' },
+                        { key: 'project_name', label: 'Project' },
+                        { key: 'failed_attempts', label: 'Failed Attempts' },
+                        { key: 'low_biometric_matches', label: 'Low Biometric' },
+                        { key: 'risk_score', label: 'Risk Score' },
+                        { key: 'risk_level', label: 'Risk Level' },
+                        { key: 'last_access', label: 'Last Access' },
+                      ], `high_risk_${toDate}.csv`)
+                    }
+                    disabled={!filteredRiskScores.length}
+                  >
+                    <DownloadIcon />
+                  </IconButton>
+                </span>
+              </Tooltip>
+            </Box>
+          </Box>
           <TableContainer sx={{ maxHeight: 500 }}>
             <Table stickyHeader size="small">
               <TableHead>
@@ -316,10 +448,10 @@ export default function Analytics() {
                 </TableRow>
               </TableHead>
               <TableBody>
-                {riskScores.length === 0 ? (
+                {filteredRiskScores.length === 0 ? (
                   <TableRow><TableCell colSpan={9} align="center">No high-risk visitors</TableCell></TableRow>
                 ) : (
-                  riskScores.map((row) => (
+                  filteredRiskScores.map((row) => (
                     <TableRow key={row.id}>
                       <TableCell fontWeight={600}>{row.full_name}</TableCell>
                       <TableCell>{row.primary_phone}</TableCell>
@@ -378,15 +510,15 @@ export default function Analytics() {
                   <TableCell>Last Transaction</TableCell>
                 </TableRow>
               </TableHead>
-              <TableBody>
-                {materialAnalytics.length === 0 ? (
-                  <TableRow><TableCell colSpan={9} align="center">No materials</TableCell></TableRow>
-                ) : (
-                  materialAnalytics.map((row) => (
-                    <TableRow key={row.id}>
-                      <TableCell fontWeight={600}>{row.material_name}</TableCell>
-                      <TableCell>{row.category}</TableCell>
-                      <TableCell align="right" fontWeight={600}>{row.current_stock}</TableCell>
+                  <TableBody>
+                    {materialAnalytics.length === 0 ? (
+                      <TableRow><TableCell colSpan={9} align="center">No materials</TableCell></TableRow>
+                    ) : (
+                      materialAnalytics.map((row) => (
+                        <TableRow key={row.id}>
+                          <TableCell fontWeight={600}>{row.material_label || row.category}</TableCell>
+                          <TableCell>{row.category}</TableCell>
+                          <TableCell align="right" fontWeight={600}>{row.current_stock}</TableCell>
                       <TableCell align="right">{row.min_threshold}</TableCell>
                       <TableCell align="right">{row.max_stock}</TableCell>
                       <TableCell align="right">{row.total_inbound || 0}</TableCell>
@@ -487,3 +619,53 @@ const KpiCard = ({ label, value, icon, color }) => (
     </CardContent>
   </Card>
 )
+
+const HighlightCard = ({ title, value, helper, tone = 'info' }) => {
+  const palette = {
+    success: '#22c55e',
+    info: '#3b82f6',
+    warning: '#f59e0b',
+    error: '#ef4444'
+  }
+  const color = palette[tone] || palette.info
+  return (
+    <Paper
+      elevation={0}
+      sx={{
+        p: 2,
+        borderRadius: 2,
+        border: '1px solid rgba(15,23,42,0.08)',
+        height: '100%',
+        background: 'linear-gradient(180deg, #0b1224 0%, #0f172a 40%, #0b1224 100%)',
+        color: '#e2e8f0'
+      }}
+    >
+      <Typography variant="caption" sx={{ opacity: 0.75, letterSpacing: 1 }}>
+        {title.toUpperCase()}
+      </Typography>
+      <Typography variant="h5" fontWeight={800} sx={{ color, mt: 0.5 }}>
+        {value}
+      </Typography>
+      <Typography variant="body2" sx={{ opacity: 0.8 }}>
+        {helper}
+      </Typography>
+    </Paper>
+  )
+}
+
+const exportCsv = (rows, columns, filename) => {
+  if (!rows || !rows.length) return
+  const header = columns.map((c) => c.label || c.key).join(',')
+  const escape = (v) => {
+    if (v === null || v === undefined) return ''
+    const s = String(v)
+    if (/[",\n]/.test(s)) return `"${s.replace(/"/g, '""')}"`
+    return s
+  }
+  const lines = rows.map((row) => columns.map((c) => escape(row[c.key])).join(','))
+  const blob = new Blob([header + '\n' + lines.join('\n')], { type: 'text/csv;charset=utf-8;' })
+  const link = document.createElement('a')
+  link.href = URL.createObjectURL(blob)
+  link.download = filename
+  link.click()
+}

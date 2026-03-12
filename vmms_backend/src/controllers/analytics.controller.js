@@ -7,7 +7,8 @@ import PDFDocument from "pdfkit";
 
 export const liveMuster = async (req, res) => {
   try {
-    const muster = await analyticsRepo.liveMuster();
+    const date = req.query?.date;
+    const muster = await analyticsRepo.liveMuster(date);
     res.json({ success: true, data: muster, count: muster.length });
   } catch (error) {
     logger.error("Live muster error:", error);
@@ -21,16 +22,13 @@ export const liveMuster = async (req, res) => {
 
 export const getDailyStats = async (req, res) => {
   try {
-    const { date } = req.query;
+    const { from_date, to_date, date } = req.query;
+    const today = new Date().toISOString().split("T")[0];
+    const fromDate = from_date || date || today;
+    const toDate = to_date || date || today;
 
-    if (!date) {
-      const today = new Date().toISOString().split("T")[0];
-      const stats = await analyticsRepo.getDailyStats(today);
-      return res.json({ success: true, date: today, stats });
-    }
-
-    const stats = await analyticsRepo.getDailyStats(date);
-    res.json({ success: true, date, stats });
+    const stats = await analyticsRepo.getDailyStats(fromDate, toDate);
+    res.json({ success: true, from_date: fromDate, to_date: toDate, stats });
   } catch (error) {
     logger.error("Daily stats error:", error);
     res.status(500).json({ success: false, error: error.message });
@@ -150,10 +148,13 @@ export const getBlacklistIncidents = async (req, res) => {
 
 export const riskScoring = async (req, res) => {
   try {
-    const { limit = 50 } = req.query;
+    const { limit = 50, from_date, to_date } = req.query;
+    const today = new Date().toISOString().split("T")[0];
+    const fromDate = from_date || today;
+    const toDate = to_date || today;
 
-    const riskScores = await analyticsRepo.getRiskScores(limit);
-    res.json({ success: true, riskScores, count: riskScores.length });
+    const riskScores = await analyticsRepo.getRiskScores(fromDate, toDate, limit);
+    res.json({ success: true, riskScores, count: riskScores.length, from_date: fromDate, to_date: toDate });
   } catch (error) {
     logger.error("Risk scoring error:", error);
     res.status(500).json({ success: false, error: error.message });

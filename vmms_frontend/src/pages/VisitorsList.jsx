@@ -6,6 +6,7 @@ import { normalizeRole, canCreateVisitor, canEditVisitor } from '../utils/visito
 
 import DataTable from '../components/common/DataTable'
 import SearchBar from '../components/common/SearchBar'
+import Pagination from '../components/common/Pagination'
 
 import {
   Box,
@@ -39,6 +40,13 @@ export default function VisitorsList() {
   const [searchInput, setSearchInput] = useState('')
   const [visitorTypes, setVisitorTypes] = useState([])
   const [selectedType, setSelectedType] = useState('ALL')
+  const [page, setPage] = useState(1)
+  const [limit] = useState(25)
+  const [total, setTotal] = useState(0)
+  const [typeCounts, setTypeCounts] = useState([])
+  const [stats, setStats] = useState({
+    total: 0, active: 0, expired: 0, inactive: 0, expiring: 0, soft_lock: 0
+  })
   const debounceRef = useRef()
   const navigate = useNavigate()
 
@@ -51,11 +59,16 @@ export default function VisitorsList() {
   /* ---------------- FETCH VISITORS ---------------- */
   const fetchVisitors = useCallback(() => {
     setLoading(true)
-    listVisitors({ q: query })
+    const params = { q: query, page, limit }
+    if (selectedType !== 'ALL') params.type = selectedType
+    listVisitors(params)
       .then((res) => {
         const data = res.data
         const allVisitors = data.visitors || []
         setVisitors(allVisitors)
+        setTotal(data.total || allVisitors.length)
+        setTypeCounts(data.typeCounts || [])
+        if (data.stats) setStats(data.stats)
 
         // Extract unique visitor types from data
         const types = Array.from(
@@ -77,7 +90,7 @@ export default function VisitorsList() {
         })
       })
       .finally(() => setLoading(false))
-  }, [query])
+  }, [query, page, limit, selectedType])
 
   useEffect(() => {
     fetchVisitors()
@@ -88,6 +101,7 @@ export default function VisitorsList() {
     clearTimeout(debounceRef.current)
     debounceRef.current = setTimeout(() => {
       setQuery(searchInput)
+      setPage(1)
     }, 400)
     return () => clearTimeout(debounceRef.current)
   }, [searchInput])
@@ -128,24 +142,11 @@ export default function VisitorsList() {
     )
   }
 
-  const stats = useMemo(() => {
-    let active = 0
-    let expired = 0
-    let expiring = 0
-    let inactive = 0
-    let softLock = 0
-
-    visitors.forEach((v) => {
-      const status = v.status || deriveStatus(v)
-      if (status === 'ACTIVE') active += 1
-      if (status === 'EXPIRED') expired += 1
-      if (status === 'INACTIVE') inactive += 1
-      if (status === 'SOFT_LOCK') softLock += 1
-      if (isExpiringSoon(v.valid_to)) expiring += 1
-    })
-
-    return { total: visitors.length, active, expired, inactive, expiring, softLock}
-  }, [visitors])
+  const typeCountMap = useMemo(() => {
+    const map = new Map()
+    typeCounts.forEach(t => map.set(t.type, t.count))
+    return map
+  }, [typeCounts])
 
   /* ---------------- PROCESS DATA & FILTER BY TYPE ---------------- */
   const processedVisitors = useMemo(() => {
@@ -158,7 +159,7 @@ export default function VisitorsList() {
         const status = v.status || deriveStatus(v)
         return {
           id: v.id,
-          serial_no: index + 1,
+          serial_no: (page - 1) * limit + index + 1,
           pass_no: v.pass_no || v.visitor_pass_no || '-',
           full_name: `${v.first_name || ''} ${v.last_name || ''}`.trim(),
           type: v.visitor_type_name || v.type_name || '-',
@@ -168,13 +169,15 @@ export default function VisitorsList() {
           status,
         }
       })
-  }, [visitors, selectedType])
+  }, [visitors, selectedType, page, limit])
 
   /* ---------------- GET TYPE COUNT ---------------- */
   const getTypeCount = (type) => {
-    if (type === 'ALL') return visitors.length
-    return visitors.filter((v) => (v.visitor_type_name || v.type_name) === type).length
+    if (type === 'ALL') return stats.total || 0
+    return typeCountMap.get(type) || 0
   }
+
+  const totalPages = Math.max(1, Math.ceil((total || 0) / limit) || 1)
 
   const actions = useMemo(() => {
     const base = [
@@ -287,12 +290,12 @@ export default function VisitorsList() {
       </Paper>
 
       <Box sx={{ display: 'flex', gap: 1.5, flexWrap: 'wrap', mb: 2 }}>
-        <Chip label={`Total: ${stats.total}`} sx={{ fontWeight: 600 }} />
-        <Chip label={`Active: ${stats.active}`} color="success" sx={{ fontWeight: 600 }} />
-        <Chip label={`Expiring Soon: ${stats.expiring}`} color="warning" sx={{ fontWeight: 600 }} />
-        <Chip label={`Expired: ${stats.expired}`} color="error" sx={{ fontWeight: 600 }} />
-        <Chip label={`Inactive: ${stats.inactive}`} sx={{ fontWeight: 600 }} />
-        <Chip label={`Soft Locked: ${stats.softLock}`} color="error" sx={{ fontWeight: 600 }} />
+        <Chip label={`Total: ${stats.total || 0}`} sx={{ fontWeight: 600 }} />
+        <Chip label={`Active: ${stats.active || 0}`} color="success" sx={{ fontWeight: 600 }} />
+        <Chip label={`Expiring Soon: ${stats.expiring || 0}`} color="warning" sx={{ fontWeight: 600 }} />
+        <Chip label={`Expired: ${stats.expired || 0}`} color="error" sx={{ fontWeight: 600 }} />
+        <Chip label={`Inactive: ${stats.inactive || 0}`} sx={{ fontWeight: 600 }} />
+        <Chip label={`Soft Locked: ${stats.soft_lock || 0}`} color="error" sx={{ fontWeight: 600 }} />
       </Box>
 
       {/* TABS */}
@@ -360,6 +363,9 @@ export default function VisitorsList() {
             maxHeight={600}
             actions={actions}
           />
+          <Box sx={{ p: 1.5, display: 'flex', justifyContent: 'flex-end' }}>
+            <Pagination page={page} totalPages={totalPages} onChange={setPage} />
+          </Box>
         </Box>
       )}
 
@@ -377,4 +383,3 @@ export default function VisitorsList() {
     </Container>
   )
 }
-

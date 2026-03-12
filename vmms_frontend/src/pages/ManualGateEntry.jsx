@@ -9,12 +9,11 @@ import {
   Chip,
   CircularProgress,
   Divider,
-  Alert,
-  ToggleButton,
-  ToggleButtonGroup
+  Alert
 } from "@mui/material"
 
 import Grid from "@mui/material/Grid"
+import MenuItem from "@mui/material/MenuItem"
 
 import CameraAltIcon from "@mui/icons-material/CameraAlt"
 import BadgeIcon from "@mui/icons-material/Badge"
@@ -30,8 +29,6 @@ export default function ManualGateEntry() {
   const [searchValue,setSearchValue] = useState("")
   const [person,setPerson] = useState(null)
 
-  const [direction,setDirection] = useState("IN")
-
   const [loading,setLoading] = useState(false)
   const [cameraReady,setCameraReady] = useState(false)
 
@@ -39,12 +36,13 @@ export default function ManualGateEntry() {
 
   const [message,setMessage] = useState("")
   const [error,setError] = useState("")
+  const [gateId,setGateId] = useState("")
+  const [gates,setGates] = useState([])
+  const [gatesLoading,setGatesLoading] = useState(false)
 
   const videoRef = useRef(null)
   const canvasRef = useRef(null)
   const inputRef = useRef(null)
-
-  const gateId = 1
 
   /* ---------------- CAMERA INIT ---------------- */
 
@@ -70,6 +68,23 @@ export default function ManualGateEntry() {
       setError("Camera access denied")
     }
   }
+
+  /* ---------------- GATES ---------------- */
+  useEffect(() => {
+    const fetchGates = async () => {
+      setGatesLoading(true)
+      try {
+        const res = await api.get("/admin/gates")
+        setGates(res.data?.gates || [])
+        if (res.data?.gates?.length) setGateId(res.data.gates[0].id)
+      } catch (err) {
+        console.error("Failed to load gates", err)
+      } finally {
+        setGatesLoading(false)
+      }
+    }
+    fetchGates()
+  }, [])
 
   /* ---------------- PHOTO CAPTURE ---------------- */
 
@@ -132,6 +147,11 @@ export default function ManualGateEntry() {
       return
     }
 
+    if(!gateId){
+      setError("Select a gate")
+      return
+    }
+
     setLoading(true)
 
     try{
@@ -139,7 +159,6 @@ export default function ManualGateEntry() {
       const res = await api.post("/gate/manual-entry",{
         person_id: person.id,
         person_type: person.person_type,
-        direction,
         gate_id: gateId,
         photo: capturedPhoto
       })
@@ -334,22 +353,20 @@ export default function ManualGateEntry() {
 
           <Stack spacing={3} mt={2}>
 
-            <ToggleButtonGroup
-              value={direction}
-              exclusive
-              onChange={(e,v)=>v && setDirection(v)}
+            <TextField
+              select
+              label="Select Gate"
+              value={gateId}
+              onChange={(e)=>setGateId(e.target.value)}
               fullWidth
+              disabled={gatesLoading}
             >
-
-              <ToggleButton value="IN">
-                CHECK IN
-              </ToggleButton>
-
-              <ToggleButton value="OUT">
-                CHECK OUT
-              </ToggleButton>
-
-            </ToggleButtonGroup>
+              {gates.map((g)=> (
+                <MenuItem key={g.id} value={g.id}>
+                  {g.gate_name || `Gate ${g.id}`}
+                </MenuItem>
+              ))}
+            </TextField>
 
             <Button
               variant="contained"

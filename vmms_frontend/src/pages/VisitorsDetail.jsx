@@ -416,6 +416,17 @@ export default function VisitorsDetail() {
 
   </SectionCard>
 
+  {/* VEHICLE */}
+
+  <SectionCard title="Vehicle Details">
+    <GridInfo>
+      <Info label="Vehicle Number" value={visitor.vehicle_number}/>
+      <Info label="Make" value={visitor.vehicle_make}/>
+      <Info label="Model" value={visitor.vehicle_model}/>
+      <Info label="Color" value={visitor.vehicle_color}/>
+    </GridInfo>
+  </SectionCard>
+
 
 
   {/* CLEARANCE */}

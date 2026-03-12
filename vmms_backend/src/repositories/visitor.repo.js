@@ -39,6 +39,10 @@ const BASE_SELECT = `
     v.valid_from,
     v.status,
     v.valid_to,
+    v.vehicle_number,
+    v.vehicle_make,
+    v.vehicle_model,
+    v.vehicle_color,
     v.enrollment_photo_path,
     v.project_id,
     v.department_id,
@@ -146,12 +150,14 @@ export const create = async (data) => {
       smartphone_allowed, smartphone_expiry,
       laptop_allowed, laptop_make, laptop_model, laptop_serial, laptop_expiry,
       ops_area_permitted, valid_from, valid_to, enrollment_photo_path,
+      vehicle_number, vehicle_make, vehicle_model, vehicle_color,
       created_by, can_register_labours, status
     ) VALUES (
       $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,
       $11,$12,$13,$14,$15,$16,$17,$18,$19,$20,
       $21,$22,$23,$24,$25,$26,$27,$28,$29,$30,
-      $31,$32,$33,$34,$35,$36,$37,$38,$39,$40,'ACTIVE'
+      $31,$32,$33,$34,$35,$36,$37,$38,$39,$40,
+      $41,$42,$43,$44,$45,$46,'ACTIVE'
     ) RETURNING *;
   `;
 
@@ -194,6 +200,10 @@ export const create = async (data) => {
     toDateOrNull(valid_from),
     toDateOrNull(valid_to),
     toNull(enrollment_photo_path),
+    toNull(params.vehicle_number),
+    toNull(params.vehicle_make),
+    toNull(params.vehicle_model),
+    toNull(params.vehicle_color),
     toIntOrNull(created_by),
     toBoolOrNull(can_register_labours) ?? false,
   ];
@@ -206,13 +216,14 @@ export const create = async (data) => {
 // FIND ALL WITH FILTERS + JOINS
 // =====================================================
 
-export const findAll = async (filters = {}) => {
-  let query = `${BASE_SELECT} WHERE 1=1`;
+export const findAll = async (filters = {}, pagination = {}) => {
+  let where = `WHERE 1=1`;
   const values = [];
   let i = 1;
+  const joinClause = `LEFT JOIN visitor_types vt ON vt.id = v.visitor_type_id`;
 
   if (filters.q) {
-    query += ` AND (
+    where += ` AND (
       v.first_name ILIKE $${i}
       OR v.last_name ILIKE $${i}
       OR v.pass_no ILIKE $${i}
@@ -224,34 +235,82 @@ export const findAll = async (filters = {}) => {
   }
 
   if (filters.first_name) {
-    query += ` AND v.first_name ILIKE $${i++}`;
+    where += ` AND v.first_name ILIKE $${i++}`;
     values.push(`%${filters.first_name}%`);
   }
 
   if (filters.pass_no) {
-    query += ` AND v.pass_no = $${i++}`;
+    where += ` AND v.pass_no = $${i++}`;
     values.push(filters.pass_no);
   }
 
   if (filters.project_id) {
-    query += ` AND v.project_id = $${i++}`;
+    where += ` AND v.project_id = $${i++}`;
     values.push(filters.project_id);
   }
 
   if (filters.status) {
-    query += ` AND v.status = $${i++}`;
+    where += ` AND v.status = $${i++}`;
     values.push(filters.status);
   }
 
   if (filters.primary_phone) {
-    query += ` AND v.primary_phone = $${i++}`;
+    where += ` AND v.primary_phone = $${i++}`;
     values.push(filters.primary_phone);
   }
 
-  query += ` ORDER BY v.created_at DESC LIMIT 100`;
+  if (filters.type) {
+    where += ` AND vt.type_name = $${i}`;
+    values.push(filters.type);
+    i += 1;
+  }
 
-  const result = await db.query(query, values);
-  return result.rows;
+  const limit = Math.min(Number(pagination.limit) || 50, 500);
+  const offset = Number(pagination.offset) || 0;
+
+  // totals
+  const countQuery = `SELECT COUNT(*) FROM visitors v ${joinClause} ${where}`;
+  const countResult = await db.query(countQuery, values);
+  const total = Number(countResult.rows[0]?.count || 0);
+
+  // status & expiry aggregates (independent of pagination)
+  const statsQuery = `
+    SELECT
+      COUNT(*)::int AS total,
+      COUNT(*) FILTER (WHERE v.valid_to IS NULL)::int AS inactive,
+      COUNT(*) FILTER (WHERE v.status = 'SOFT_LOCK')::int AS soft_lock,
+      COUNT(*) FILTER (WHERE v.valid_to IS NOT NULL AND v.valid_to >= CURRENT_DATE)::int AS active,
+      COUNT(*) FILTER (WHERE v.valid_to IS NOT NULL AND v.valid_to < CURRENT_DATE)::int AS expired,
+      COUNT(*) FILTER (
+        WHERE v.valid_to IS NOT NULL
+          AND v.valid_to >= CURRENT_DATE
+          AND v.valid_to <= CURRENT_DATE + INTERVAL '7 days'
+      )::int AS expiring
+    FROM visitors v
+    ${joinClause}
+    ${where}
+  `;
+  const statsResult = await db.query(statsQuery, values);
+  const stats = statsResult.rows[0] || {};
+
+  // visitor type counts (independent of pagination)
+  const typeQuery = `
+    SELECT COALESCE(vt.type_name, 'Unknown') AS type, COUNT(*)::int AS count
+    FROM visitors v
+    ${joinClause}
+    ${where}
+    GROUP BY 1
+    ORDER BY 1
+  `;
+  const typeResult = await db.query(typeQuery, values);
+  const typeCounts = typeResult.rows;
+
+  // paged data
+  const dataQuery = `${BASE_SELECT} ${where} ORDER BY v.created_at DESC LIMIT $${i} OFFSET $${i + 1}`;
+  const dataValues = [...values, limit, offset];
+  const result = await db.query(dataQuery, dataValues);
+
+  return { rows: result.rows, total, limit, offset, stats, typeCounts };
 };
 
 // =====================================================

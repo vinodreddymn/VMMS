@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useState } from "react"
 import {
   Card,
   CardContent,
@@ -9,14 +9,17 @@ import {
   Typography,
   Grid,
   Paper,
-  Chip
-} from '@mui/material'
-import api from '../../api/axios'
+  Chip,
+  LinearProgress,
+  Divider
+} from "@mui/material"
+import api from "../../api/axios"
 
 export default function GateLoadChart() {
+
   const [gateStats, setGateStats] = useState([])
   const [loading, setLoading] = useState(false)
-  const [error, setError] = useState('')
+  const [error, setError] = useState("")
 
   useEffect(() => {
     fetchGateLoad()
@@ -24,145 +27,225 @@ export default function GateLoadChart() {
 
   const fetchGateLoad = async () => {
     setLoading(true)
+
     try {
-      const today = new Date().toISOString().split('T')[0]
-      const res = await api.get(`/analytics/gate-stats?from_date=${today}&to_date=${today}`)
-      if (res?.data?.gateStats) {
-        setGateStats(res.data.gateStats)
-      }
-      setError('')
+      const today = new Date().toISOString().split("T")[0]
+
+      const res = await api.get(
+        `/analytics/gate-stats?from_date=${today}&to_date=${today}`
+      )
+
+      setGateStats(res?.data?.gateStats || [])
+      setError("")
     } catch (err) {
-      setError(err?.response?.data?.error || 'Failed to fetch gate load')
+      setError(err?.response?.data?.error || "Failed to fetch gate load")
     } finally {
       setLoading(false)
     }
   }
 
-  const getLoadStatus = (totalScans) => {
-    if (totalScans > 200) return { label: 'HIGH', color: 'error' }
-    if (totalScans > 100) return { label: 'MEDIUM', color: 'warning' }
-    return { label: 'LOW', color: 'success' }
+  const getLoadStatus = (scans) => {
+    if (scans > 200) return { label: "HIGH LOAD", color: "error" }
+    if (scans > 100) return { label: "MEDIUM LOAD", color: "warning" }
+    return { label: "LOW LOAD", color: "success" }
+  }
+
+  const getProgressColor = (color) => {
+    if (color === "error") return "#ef5350"
+    if (color === "warning") return "#fb8c00"
+    return "#43a047"
   }
 
   return (
-    <Card>
+    <Card
+      elevation={0}
+      sx={{
+        borderRadius: 3,
+        border: "1px solid #e5e7eb",
+        height: "100%"
+      }}
+    >
       <CardHeader
         title="Gate Load Distribution"
-        titleTypographyProps={{ variant: 'h6', fontWeight: 600 }}
-        action={
-          <Typography variant="caption" color="text.secondary">
-            Today
-          </Typography>
-        }
-        sx={{ borderBottom: '1px solid #eee' }}
+        subheader="Today's gate traffic analytics"
+        titleTypographyProps={{ fontWeight: 700 }}
+        sx={{ borderBottom: "1px solid #eee" }}
       />
-      <CardContent>
-        {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
 
+      <CardContent>
+
+        {/* Error State */}
+        {error && (
+          <Alert severity="error" sx={{ mb: 2 }}>
+            {error}
+          </Alert>
+        )}
+
+        {/* Loading */}
         {loading ? (
-          <Box sx={{ display: 'flex', justifyContent: 'center', p: 3 }}>
-            <CircularProgress size={30} />
+          <Box sx={{ display: "flex", justifyContent: "center", py: 6 }}>
+            <CircularProgress size={34} />
           </Box>
         ) : gateStats.length === 0 ? (
-          <Alert severity="info">No gate data available</Alert>
+          <Alert severity="info">No gate activity recorded today</Alert>
         ) : (
+
           <Grid container spacing={2}>
+
             {gateStats.map((gate) => {
+
               const status = getLoadStatus(gate.total_scans)
-              const failureRate = ((gate.failed_scans / gate.total_scans) * 100).toFixed(1)
+
+              const capacity =
+                Math.min((gate.total_scans / 300) * 100, 100)
+
+              const failureRate = gate.total_scans
+                ? ((gate.failed_scans / gate.total_scans) * 100).toFixed(1)
+                : 0
 
               return (
-                <Grid size={{ xs: 12, md: 6 }} key={gate.id}>
+
+                <Grid item xs={12} md={6} key={gate.id}>
+
                   <Paper
                     elevation={0}
                     sx={{
-                      p: 2,
-                      border: '1px solid #eee',
-                      borderLeft: `4px solid ${
-                        status.color === 'error'
-                          ? '#d32f2f'
-                          : status.color === 'warning'
-                          ? '#f57c00'
-                          : '#388e3c'
-                      }`
+                      p: 2.5,
+                      borderRadius: 2,
+                      border: "1px solid #e5e7eb",
+                      transition: "all 0.25s",
+                      "&:hover": {
+                        boxShadow: "0 6px 18px rgba(0,0,0,0.06)",
+                        transform: "translateY(-2px)"
+                      }
                     }}
                   >
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
-                      <Typography variant="subtitle2" fontWeight={600}>
+
+                    {/* Header */}
+                    <Box
+                      sx={{
+                        display: "flex",
+                        justifyContent: "space-between",
+                        alignItems: "center",
+                        mb: 1
+                      }}
+                    >
+                      <Typography fontWeight={700}>
                         {gate.gate_name}
                       </Typography>
-                      <Chip label={status.label} size="small" color={status.color} />
+
+                      <Chip
+                        label={status.label}
+                        size="small"
+                        color={status.color}
+                      />
                     </Box>
 
-                    <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 1 }}>
-                      {gate.entrance_name || 'No Entrance Assigned'}
+                    <Typography
+                      variant="caption"
+                      color="text.secondary"
+                    >
+                      {gate.entrance_name || "No entrance assigned"}
                     </Typography>
 
-                    <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 1 }}>
-                      <Box>
+                    <Divider sx={{ my: 1.5 }} />
+
+                    {/* Stats */}
+                    <Grid container spacing={1}>
+
+                      <Grid item xs={6}>
                         <Typography variant="caption" color="text.secondary">
                           Total Scans
                         </Typography>
-                        <Typography variant="h6" fontWeight={700}>
+                        <Typography variant="h5" fontWeight={700}>
                           {gate.total_scans}
                         </Typography>
-                      </Box>
+                      </Grid>
 
-                      <Box>
-                        <Typography variant="caption" color="text.secondary">
-                          Entries
-                        </Typography>
-                        <Typography variant="h6" fontWeight={700} sx={{ color: '#4caf50' }}>
-                          {gate.entries}
-                        </Typography>
-                      </Box>
-
-                      <Box>
-                        <Typography variant="caption" color="text.secondary">
-                          Exits
-                        </Typography>
-                        <Typography variant="h6" fontWeight={700} sx={{ color: '#2196f3' }}>
-                          {gate.exits}
-                        </Typography>
-                      </Box>
-
-                      <Box>
+                      <Grid item xs={6}>
                         <Typography variant="caption" color="text.secondary">
                           Failed
                         </Typography>
-                        <Typography variant="h6" fontWeight={700} sx={{ color: '#f44336' }}>
+                        <Typography
+                          variant="h6"
+                          fontWeight={700}
+                          color="error"
+                        >
                           {gate.failed_scans} ({failureRate}%)
                         </Typography>
-                      </Box>
-                    </Box>
+                      </Grid>
 
-                    {/* Progress bar */}
-                    <Box sx={{ mt: 1.5, mb: 1 }}>
+                      <Grid item xs={6}>
+                        <Typography variant="caption" color="text.secondary">
+                          Entries
+                        </Typography>
+                        <Typography
+                          variant="h6"
+                          fontWeight={600}
+                          color="success.main"
+                        >
+                          {gate.entries}
+                        </Typography>
+                      </Grid>
+
+                      <Grid item xs={6}>
+                        <Typography variant="caption" color="text.secondary">
+                          Exits
+                        </Typography>
+                        <Typography
+                          variant="h6"
+                          fontWeight={600}
+                          color="info.main"
+                        >
+                          {gate.exits}
+                        </Typography>
+                      </Grid>
+
+                    </Grid>
+
+                    {/* Capacity Bar */}
+                    <Box sx={{ mt: 2 }}>
+
+                      <LinearProgress
+                        variant="determinate"
+                        value={capacity}
+                        sx={{
+                          height: 8,
+                          borderRadius: 5,
+                          background: "#f1f5f9",
+                          "& .MuiLinearProgress-bar": {
+                            backgroundColor: getProgressColor(status.color)
+                          }
+                        }}
+                      />
+
                       <Box
                         sx={{
-                          width: '100%',
-                          height: 8,
-                          backgroundColor: '#f0f0f0',
-                          borderRadius: 1,
-                          overflow: 'hidden'
+                          display: "flex",
+                          justifyContent: "space-between",
+                          mt: 0.5
                         }}
                       >
-                        <Box
-                          sx={{
-                            width: `${Math.min((gate.total_scans / 300) * 100, 100)}%`,
-                            height: '100%',
-                            backgroundColor: status.color === 'error' ? '#d32f2f' : status.color === 'warning' ? '#f57c00' : '#388e3c',
-                            transition: 'width 0.3s ease'
-                          }}
-                        />
+                        <Typography
+                          variant="caption"
+                          color="text.secondary"
+                        >
+                          Gate Capacity
+                        </Typography>
+
+                        <Typography
+                          variant="caption"
+                          fontWeight={600}
+                        >
+                          {capacity.toFixed(0)}%
+                        </Typography>
                       </Box>
+
                     </Box>
 
-                    <Typography variant="caption" color="text.secondary">
-                      Capacity: {Math.min((gate.total_scans / 300) * 100, 100).toFixed(0)}%
-                    </Typography>
                   </Paper>
                 </Grid>
+
               )
             })}
           </Grid>

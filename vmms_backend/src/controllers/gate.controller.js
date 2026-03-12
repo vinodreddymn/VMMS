@@ -42,25 +42,29 @@ export const manualEntry = async (req, res) => {
       person_type,
       person_id,
       gate_id,
-      direction,
       photo,
       rfid_uid
     } = req.body;
 
     const operator_id = req.user?.id || null;
 
-    if (!person_type || !person_id || !direction) {
+    if (!person_type || !person_id) {
       return res.status(400).json({
         success: false,
-        error: "person_type, person_id and direction required",
+        error: "person_type and person_id required",
       });
     }
 
-    if (!["IN", "OUT"].includes(direction)) {
-      return res.status(400).json({
-        success: false,
-        error: "Direction must be IN or OUT",
-      });
+    // Validate gate if provided
+    let gateId = gate_id || null;
+    if (gateId) {
+      const gate = await gateRepo.getGate(gateId);
+      if (!gate) {
+        return res.status(400).json({
+          success: false,
+          error: `Invalid gate_id ${gateId}`,
+        });
+      }
     }
 
     let livePhotoPath = null;
@@ -72,7 +76,7 @@ export const manualEntry = async (req, res) => {
         personType: person_type,
         personId: person_id,
         rfidUid: rfid_uid,
-        gateId: gate_id,
+        gateId,
         photo,
       });
 
@@ -80,24 +84,27 @@ export const manualEntry = async (req, res) => {
     }
 
     // Insert access log
+    const lastLog = await gateRepo.getLastLog(person_type, person_id);
+    const nextDirection = lastLog?.direction === "IN" ? "OUT" : "IN";
+
     const accessLog = await gateRepo.insertAccessLog(
       person_type,
       person_id,
-      gate_id,
-      direction,
+      gateId,
+      nextDirection,
       "SUCCESS",
+      null, // error_code
       livePhotoPath,
-      operator_id,
       true // manual override
     );
 
     logger.warn(
-      `Manual gate entry by operator ${operator_id}: ${person_type} ${person_id} ${direction}`
+      `Manual gate entry by operator ${operator_id}: ${person_type} ${person_id} ${nextDirection}`
     );
 
     res.json({
       success: true,
-      message: `Manual ${direction === "IN" ? "Check-in" : "Check-out"} recorded`,
+      message: `Manual ${nextDirection === "IN" ? "Check-in" : "Check-out"} recorded`,
       access_log_id: accessLog?.id,
       photo_path: livePhotoPath,
     });

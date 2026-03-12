@@ -1,4 +1,4 @@
-import React, { useState } from "react"
+import React, { useState, useEffect, useRef } from "react"
 import api from "../api/axios"
 import useAuthStore from "../store/auth.store"
 import { useNavigate } from "react-router-dom"
@@ -27,6 +27,9 @@ export default function Login() {
 
   const loginStore = useAuthStore()
   const navigate = useNavigate()
+  const timerRef = useRef(null)
+  const lastActivityRef = useRef(Date.now())
+  const IDLE_LIMIT_MS = 2 * 60 * 1000 // 2 minutes
 
   async function handleSubmit(e) {
     e.preventDefault()
@@ -58,6 +61,33 @@ export default function Login() {
       setLoading(false)
     }
   }
+
+  /* ---------------- IDLE AUTO-LOGOUT ---------------- */
+  const resetIdleTimer = () => {
+    lastActivityRef.current = Date.now()
+    if (timerRef.current) clearTimeout(timerRef.current)
+    timerRef.current = setTimeout(() => {
+      // Only logout if user is already logged in and idle exceeded
+      const token = loginStore.token || localStorage.getItem("token")
+      if (token) {
+        loginStore.logout()
+        navigate("/login")
+        alert("Logged out due to inactivity (2 minutes).")
+      }
+    }, IDLE_LIMIT_MS)
+  }
+
+  useEffect(() => {
+    const activityEvents = ["mousemove", "keydown", "click", "touchstart"]
+    const handler = () => resetIdleTimer()
+    activityEvents.forEach((evt) => window.addEventListener(evt, handler))
+    resetIdleTimer()
+    return () => {
+      activityEvents.forEach((evt) => window.removeEventListener(evt, handler))
+      if (timerRef.current) clearTimeout(timerRef.current)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   return (
 

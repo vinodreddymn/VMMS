@@ -3,7 +3,8 @@ import db from "../config/db.js";
 // LIVE MUSTER
 // =====================================================
 
-export const liveMuster = async () => {
+export const liveMuster = async (date) => {
+  const day = date || new Date().toISOString().split("T")[0];
   const result = await db.query(`
     WITH latest AS (
       SELECT
@@ -12,6 +13,7 @@ export const liveMuster = async () => {
         MAX(scan_time) AS last_scan_time
       FROM access_logs
       WHERE person_type IN ('VISITOR', 'LABOUR')
+        AND scan_time::DATE = $1::DATE
       GROUP BY person_type, person_id
     ),
     state AS (
@@ -64,11 +66,11 @@ export const liveMuster = async () => {
         AND al.scan_time <= s.last_scan_time
       ORDER BY al.scan_time DESC
       LIMIT 1
-    ) ent ON TRUE
+      ) ent ON TRUE
     ORDER BY
       CASE WHEN s.current_status = 'IN' THEN 0 ELSE 1 END,
       s.last_scan_time DESC
-  `);
+  `, [day]);
 
   return result.rows;
 };
@@ -77,18 +79,20 @@ export const liveMuster = async () => {
 // DAILY STATISTICS
 // =====================================================
 
-export const getDailyStats = async (date) => {
+export const getDailyStats = async (from_date, to_date) => {
   const query = `
     SELECT
-      COUNT(DISTINCT CASE WHEN direction='IN' THEN person_id END) as total_entries,
-      COUNT(DISTINCT CASE WHEN direction='OUT' THEN person_id END) as total_exits,
-      COUNT(DISTINCT CASE WHEN person_type='LABOUR' AND direction='IN' THEN person_id END) as labour_entries,
-      COUNT(DISTINCT CASE WHEN person_type='VISITOR' AND direction='IN' THEN person_id END) as visitor_entries
+      COUNT(*) FILTER (WHERE direction='IN') as total_entry_scans,
+      COUNT(*) FILTER (WHERE direction='OUT') as total_exit_scans,
+      COUNT(DISTINCT CASE WHEN direction='IN' THEN person_id END) as unique_entries,
+      COUNT(DISTINCT CASE WHEN direction='OUT' THEN person_id END) as unique_exits,
+      COUNT(*) FILTER (WHERE person_type='LABOUR' AND direction='IN') as labour_entry_scans,
+      COUNT(*) FILTER (WHERE person_type='VISITOR' AND direction='IN') as visitor_entry_scans
     FROM access_logs
-    WHERE DATE(scan_time) = $1
+    WHERE scan_time::DATE BETWEEN $1::DATE AND $2::DATE
   `;
 
-  const result = await db.query(query, [date]);
+  const result = await db.query(query, [from_date, to_date]);
   return result.rows[0];
 };
 
@@ -273,7 +277,7 @@ export const getPeakHours = async (from_date, to_date) => {
 // RISK SCORING
 // =====================================================
 
-export const getRiskScores = async (limit = 50) => {
+export const getRiskScores = async (from_date, to_date, limit = 50) => {
   const query = `
     WITH visitor_risk AS (
       SELECT
@@ -286,8 +290,8 @@ export const getRiskScores = async (limit = 50) => {
         MAX(al.scan_time) as last_access
       FROM visitors v
       LEFT JOIN projects p ON p.id = v.project_id
-      LEFT JOIN access_logs al ON al.person_id = v.id AND al.person_type = 'VISITOR'
-      LEFT JOIN biometric_match_audit bma ON bma.visitor_id = v.id
+      LEFT JOIN access_logs al ON al.person_id = v.id AND al.person_type = 'VISITOR' AND al.scan_time::DATE BETWEEN $1::DATE AND $2::DATE
+      LEFT JOIN biometric_match_audit bma ON bma.visitor_id = v.id AND bma.attempt_time::DATE BETWEEN $1::DATE AND $2::DATE
       LEFT JOIN blacklist bl ON bl.phone = v.primary_phone
       WHERE v.status = 'ACTIVE'
       GROUP BY v.id, p.project_name
@@ -306,10 +310,10 @@ export const getRiskScores = async (limit = 50) => {
     FROM visitor_risk
     WHERE (is_blacklisted = 1 OR failed_attempts > 0 OR low_biometric_matches > 0)
     ORDER BY risk_score DESC
-    LIMIT $1
+    LIMIT $3
   `;
 
-  const result = await db.query(query, [limit]);
+  const result = await db.query(query, [from_date, to_date, limit]);
   return result.rows;
 };
 
@@ -345,12 +349,12 @@ export const getGatePerformance = async (from_date, to_date) => {
     SELECT
       g.id, g.gate_name, e.entrance_name,
       COUNT(*) as total_scans,
-      COUNT(DISTINCT CASE WHEN status = 'SUCCESS' THEN id END) as successful_scans,
-      COUNT(DISTINCT CASE WHEN status = 'FAILED' THEN id END) as failed_scans,
-      ROUND(100.0 * COUNT(DISTINCT CASE WHEN status = 'SUCCESS' THEN id END) / NULLIF(COUNT(*), 0), 2) as success_rate,
-      COUNT(DISTINCT error_code) as unique_error_types,
+      COUNT(CASE WHEN al.status = 'SUCCESS' THEN 1 END) as successful_scans,
+      COUNT(CASE WHEN al.status = 'FAILED' THEN 1 END) as failed_scans,
+      ROUND(100.0 * COUNT(CASE WHEN al.status = 'SUCCESS' THEN 1 END) / NULLIF(COUNT(*), 0), 2) as success_rate,
+      COUNT(DISTINCT al.error_code) as unique_error_types,
       STRING_AGG(DISTINCT error_code, ', ' ORDER BY error_code) as error_codes,
-      MAX(scan_time) as last_activity
+      MAX(al.scan_time) as last_activity
     FROM access_logs al
     JOIN gates g ON al.gate_id = g.id
     LEFT JOIN entrances e ON g.entrance_id = e.id
@@ -370,26 +374,25 @@ export const getGatePerformance = async (from_date, to_date) => {
 export const getMaterialAnalytics = async (from_date, to_date) => {
   const query = `
     SELECT
-      m.id, m.material_name, m.category,
-      COALESCE(m.current_stock, 0) as current_stock,
-      COALESCE(m.min_threshold, 0) as min_threshold,
-      COALESCE(m.max_stock, 0) as max_stock,
-      COUNT(DISTINCT CASE WHEN mt.transaction_type = 'INBOUND' THEN mt.id END) as inbound_count,
-      COUNT(DISTINCT CASE WHEN mt.transaction_type = 'OUTBOUND' THEN mt.id END) as outbound_count,
-      SUM(CASE WHEN mt.transaction_type = 'INBOUND' THEN mt.quantity ELSE 0 END) as total_inbound,
-      SUM(CASE WHEN mt.transaction_type = 'OUTBOUND' THEN mt.quantity ELSE 0 END) as total_outbound,
+      m.id,
+      CONCAT_WS(' ', m.category, m.make, m.model, m.serial_number) AS material_label,
+      m.category,
+      COALESCE(SUM(CASE WHEN mt.direction = 'IN' THEN mt.quantity ELSE -mt.quantity END), 0) as current_stock,
+      0 as min_threshold,
+      0 as max_stock,
+      COUNT(CASE WHEN mt.direction = 'IN' THEN 1 END) as inbound_count,
+      COUNT(CASE WHEN mt.direction = 'OUT' THEN 1 END) as outbound_count,
+      COALESCE(SUM(CASE WHEN mt.direction = 'IN' THEN mt.quantity ELSE 0 END),0) as total_inbound,
+      COALESCE(SUM(CASE WHEN mt.direction = 'OUT' THEN mt.quantity ELSE 0 END),0) as total_outbound,
       CASE
-        WHEN COALESCE(m.current_stock, 0) <= COALESCE(m.min_threshold, 0) THEN 'CRITICAL'
-        WHEN COALESCE(m.current_stock, 0) <= (COALESCE(m.min_threshold, 0) * 1.5) THEN 'LOW'
-        WHEN COALESCE(m.current_stock, 0) >= COALESCE(m.max_stock, 0) THEN 'OVERSTOCK'
+        WHEN COALESCE(SUM(CASE WHEN mt.direction = 'IN' THEN mt.quantity ELSE -mt.quantity END), 0) <= 0 THEN 'CRITICAL'
         ELSE 'NORMAL'
       END as stock_status,
-      MAX(mt.created_at) as last_transaction
+      MAX(mt.transaction_time) as last_transaction
     FROM materials m
     LEFT JOIN material_transactions mt ON m.id = mt.material_id 
-      AND mt.created_at::DATE >= $1::DATE AND mt.created_at::DATE <= $2::DATE
-    WHERE m.status = 'ACTIVE'
-    GROUP BY m.id, m.material_name, m.category, m.current_stock, m.min_threshold, m.max_stock
+      AND mt.transaction_time::DATE >= $1::DATE AND mt.transaction_time::DATE <= $2::DATE
+    GROUP BY m.id, m.category, m.make, m.model, m.serial_number
     ORDER BY stock_status DESC, current_stock ASC
   `;
 
@@ -410,18 +413,13 @@ export const getLabourAnalytics = async (from_date, to_date) => {
       COUNT(DISTINCT CASE WHEN al.direction = 'IN' THEN DATE(al.scan_time) END) as days_worked,
       COUNT(DISTINCT CASE WHEN al.direction = 'IN' THEN al.id END) as total_entries,
       COUNT(DISTINCT CASE WHEN al.direction = 'OUT' THEN al.id END) as total_exits,
-      AVG(EXTRACT(EPOCH FROM (
-        LAG(al.scan_time) OVER (PARTITION BY al.person_id ORDER BY al.scan_time)
-        - al.scan_time
-      )) / 3600)::numeric(5,2) as avg_duration_hours,
       MAX(al.scan_time) as last_access,
-      COUNT(DISTINCT CASE WHEN al.status = 'FAILED' THEN al.id END) as failed_attempts
+      COUNT(CASE WHEN al.status = 'FAILED' THEN 1 END) as failed_attempts
     FROM labours l
     LEFT JOIN visitors sup ON sup.id = l.supervisor_id
-    LEFT JOIN projects p ON p.id = l.project_id
+    LEFT JOIN projects p ON p.id = sup.project_id
     LEFT JOIN access_logs al ON al.person_id = l.id AND al.person_type = 'LABOUR'
       AND al.scan_time::DATE >= $1::DATE AND al.scan_time::DATE <= $2::DATE
-    WHERE l.status = 'ACTIVE'
     GROUP BY l.id, l.full_name, l.phone, sup.full_name, p.project_name
     ORDER BY last_access DESC NULLS LAST
   `;

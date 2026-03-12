@@ -13,6 +13,7 @@ import {
   Tabs,
   Table,
   TableBody,
+  TableContainer,
   TableCell,
   TableHead,
   TableRow,
@@ -100,9 +101,9 @@ export default function Dashboard() {
     const fromDate = '1970-01-01'
     try {
       const results = await Promise.allSettled([
-        api.get('/public/andon/summary'),
-        api.get('/public/andon/transactions?limit=200'),
-        api.get('/analytics/muster'),
+        api.get(`/public/andon/summary?date=${today}`),
+        api.get(`/public/andon/transactions?date=${today}&limit=200`),
+        api.get(`/analytics/muster?date=${today}`),
         api.get(`/analytics/project-stats?from_date=${fromDate}&to_date=${today}`),
       ])
 
@@ -155,8 +156,8 @@ export default function Dashboard() {
     [visitorTx]
   )
   const visitorCheckedOut = useMemo(
-    () => muster.filter((row) => row.person_type === 'VISITOR' && row.current_status === 'OUT'),
-    [muster]
+    () => visitorTx.filter((row) => row.direction === 'OUT'),
+    [visitorTx]
   )
   const visitorInside = useMemo(
     () => muster.filter((row) => row.person_type === 'VISITOR' && row.current_status === 'IN'),
@@ -168,8 +169,8 @@ export default function Dashboard() {
     [labourTx]
   )
   const labourCheckedOut = useMemo(
-    () => muster.filter((row) => row.person_type === 'LABOUR' && row.current_status === 'OUT'),
-    [muster]
+    () => labourTx.filter((row) => row.direction === 'OUT'),
+    [labourTx]
   )
   const labourInside = useMemo(
     () => muster.filter((row) => row.person_type === 'LABOUR' && row.current_status === 'IN'),
@@ -212,7 +213,8 @@ export default function Dashboard() {
   const labours = summary?.labours || {}
 
   return (
-    <Container maxWidth="xl" sx={{ py: 3 }}>
+    <Container maxWidth="xXl" sx={{ width: '100%', py: 3 }}>
+
       {/* Header */}
 
 
@@ -313,27 +315,107 @@ export default function Dashboard() {
       </Grid>
 
       {/* Live Project Load */}
-      <Paper elevation={0} sx={{ p: 2.5, mb: 3, borderRadius: 2, border: '1px solid rgba(15,23,42,0.08)' }}>
-        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 2, mb: 2 }}>
+      {/* Live Project Load */}
+      <Paper
+        elevation={0}
+        sx={{
+          p: 2.5,
+          mb: 3,
+          borderRadius: 2,
+          border: "1px solid rgba(15,23,42,0.08)"
+        }}
+      >
+        <Box
+          sx={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            mb: 2
+          }}
+        >
           <Typography variant="h6" fontWeight={700}>
             Live Numbers by Project (Inside Now)
           </Typography>
-          <Chip label={`Updated ${formatTimeOnly(lastRefresh)}`} size="small" />
+
+          <Chip
+            label={`Updated ${formatTimeOnly(lastRefresh)}`}
+            size="small"
+          />
         </Box>
+
         {liveProjectCounts.length === 0 ? (
-          <Typography color="text.secondary">No live project activity.</Typography>
+          <Typography color="text.secondary">
+            No live project activity.
+          </Typography>
         ) : (
-          <Stack direction="row" spacing={1} flexWrap="wrap">
-            {liveProjectCounts.map((p) => (
-              <Chip
-                key={p.project_name}
-                label={`${p.project_name}: ${p.visitors + p.labours} (Visitors: ${p.visitors} / Labourers: ${p.labours})`}
-                color="info"
-                variant="outlined"
-                sx={{ mb: 1 }}
-              />
-            ))}
-          </Stack>
+          <TableContainer>
+            <Table size="small">
+
+              {/* Table Header */}
+              <TableHead>
+                <TableRow
+                  sx={{
+                    background: "rgba(15,23,42,0.04)"
+                  }}
+                >
+                  <TableCell sx={{ fontWeight: 600 }}>Project</TableCell>
+                  <TableCell align="center" sx={{ fontWeight: 600 }}>
+                    Visitors
+                  </TableCell>
+                  <TableCell align="center" sx={{ fontWeight: 600 }}>
+                    Labourers
+                  </TableCell>
+                  <TableCell align="center" sx={{ fontWeight: 600 }}>
+                    Total Inside
+                  </TableCell>
+                </TableRow>
+              </TableHead>
+
+              {/* Table Body */}
+              <TableBody>
+                {liveProjectCounts.map((p) => {
+                  const total = p.visitors + p.labours
+
+                  return (
+                    <TableRow key={p.project_name} hover>
+
+                      <TableCell>
+                        <Typography fontWeight={600}>
+                          {p.project_name}
+                        </Typography>
+                      </TableCell>
+
+                      <TableCell align="center">
+                        <Chip
+                          label={p.visitors}
+                          size="small"
+                          color="primary"
+                          variant="outlined"
+                        />
+                      </TableCell>
+
+                      <TableCell align="center">
+                        <Chip
+                          label={p.labours}
+                          size="small"
+                          color="secondary"
+                          variant="outlined"
+                        />
+                      </TableCell>
+
+                      <TableCell align="center">
+                        <Typography fontWeight={700}>
+                          {total}
+                        </Typography>
+                      </TableCell>
+
+                    </TableRow>
+                  )
+                })}
+              </TableBody>
+
+            </Table>
+          </TableContainer>
         )}
       </Paper>
 
@@ -380,11 +462,18 @@ export default function Dashboard() {
                   { key: 'full_name', label: 'Visitor' },
                   { key: 'project_name', label: 'Project' },
                   { key: 'entry_time', label: 'Check-in', render: (v) => formatDateTime(v.entry_time) },
-                  { key: 'last_scan_time', label: 'Check-out', render: (v) => formatDateTime(v.last_scan_time) },
+                  {
+                    key: 'last_scan_time',
+                    label: 'Check-out',
+                    render: (row) => formatDateTime(row.last_scan_time || row.scan_time)
+                  },
                   {
                     key: 'duration',
                     label: 'Time Inside',
-                    render: (v) => formatDuration(new Date(v.last_scan_time) - new Date(v.entry_time)),
+                    render: (row) =>
+                      row.entry_time && (row.last_scan_time || row.scan_time)
+                        ? formatDuration(new Date(row.last_scan_time || row.scan_time) - new Date(row.entry_time))
+                        : '-',
                   },
                 ]}
                 onRowClick={handleVisitorRowClick}
@@ -443,11 +532,18 @@ export default function Dashboard() {
                   { key: 'supervisor_name', label: 'Supervisor' },
                   { key: 'project_name', label: 'Project' },
                   { key: 'entry_time', label: 'Check-in', render: (v) => formatDateTime(v.entry_time) },
-                  { key: 'last_scan_time', label: 'Check-out', render: (v) => formatDateTime(v.last_scan_time) },
+                  {
+                    key: 'last_scan_time',
+                    label: 'Check-out',
+                    render: (row) => formatDateTime(row.last_scan_time || row.scan_time)
+                  },
                   {
                     key: 'duration',
                     label: 'Time Inside',
-                    render: (v) => formatDuration(new Date(v.last_scan_time) - new Date(v.entry_time)),
+                    render: (row) =>
+                      row.entry_time && (row.last_scan_time || row.scan_time)
+                        ? formatDuration(new Date(row.last_scan_time || row.scan_time) - new Date(row.entry_time))
+                        : '-',
                   },
                 ]}
               />
@@ -509,23 +605,14 @@ export default function Dashboard() {
         />
       </Paper>
 
-      {/* Existing Features (Moved Down) */}
-      <Typography variant="h6" fontWeight={700} sx={{ mb: 2 }}>
-        More Insights
-      </Typography>
-      <Grid container spacing={3}>
-        <Grid size={{ xs: 12, md: 6 }}>
-          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-            <LiveMusterCard />
-            <EntryFeed />
-          </Box>
+
+
+      <Grid container spacing={3} alignItems="stretch">
+
+        <Grid item xs={12}>
+          <GateLoadChart />
         </Grid>
-        <Grid size={{ xs: 12, md: 6 }}>
-          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-            <RiskPanel />
-            <GateLoadChart />
-          </Box>
-        </Grid>
+
       </Grid>
     </Container>
   )

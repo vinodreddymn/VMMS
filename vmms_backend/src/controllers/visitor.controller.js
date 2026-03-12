@@ -85,10 +85,22 @@ export const createVisitor = async (req, res) => {
 
 export const getVisitors = async (req, res) => {
   try {
-    const filters = req.query;
-    const visitors = await visitorRepo.findAll(filters);
+    const { page = 1, limit = 50, ...filters } = req.query;
+    const safeLimit = Math.min(Number(limit) || 50, 500);
+    const currentPage = Math.max(Number(page) || 1, 1);
+    const offset = (currentPage - 1) * safeLimit;
 
-    res.json({ success: true, count: visitors.length, visitors });
+    const { rows, total, stats, typeCounts } = await visitorRepo.findAll(filters, { limit: safeLimit, offset });
+
+    res.json({
+      success: true,
+      total,
+      page: currentPage,
+      limit: safeLimit,
+      stats,
+      typeCounts,
+      visitors: rows,
+    });
   } catch (error) {
     logger.error("Get Visitors Error:", error);
     res.status(500).json({ success: false, error: error.message });
@@ -143,7 +155,7 @@ export const updateVisitor = async (req, res) => {
 
     let visitor;
 
-    const { status, reason, ...rest } = updates || {};
+    const { status, reason, ...rest } = visitorUpdates || {};
     const hasOtherFields = Object.keys(rest || {}).length > 0;
 
     if (hasOtherFields) {
