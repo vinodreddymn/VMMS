@@ -4,8 +4,7 @@ vmms_backend/node_modules/
 vmms_backend/node_modules/
 
 
-# Environment files
-.env
+
 
 # Build folders
 dist/
@@ -19,8 +18,7 @@ logs
 .DS_Store
 Thumbs.db
 
-# Backend folders
-vmms_backend/uploads/
+
 
 # Frontend
 vmms_frontend/certs/
