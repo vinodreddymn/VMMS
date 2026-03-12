@@ -501,6 +501,14 @@ export const getDocuments = async (visitor_id) => {
   return result.rows;
 };
 
+export const getDocumentById = async (docId) => {
+  const result = await db.query(
+    `SELECT * FROM visitor_documents WHERE id = $1 LIMIT 1`,
+    [docId]
+  );
+  return result.rows[0];
+};
+
 // =====================================================
 // BIOMETRIC
 // =====================================================

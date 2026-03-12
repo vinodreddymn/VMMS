@@ -5,6 +5,7 @@ import smsService from "../services/sms.service.js";
 import logger from "../utils/logger.util.js";
 import db from "../config/db.js";
 import { toPosixRelativePath } from "../utils/visitor-storage.util.js";
+import { evaluateVisitorLock, getSoftLockReason } from "../services/softlock.service.js";
 // =====================================================
 // VISITOR ENROLLMENT & CRUD
 // =====================================================
@@ -123,18 +124,24 @@ export const getVisitorById = async (req, res) => {
       return res.status(404).json({ success: false, error: "Visitor not found" });
     }
 
-    const [documents, biometric, gates] = await Promise.all([
+    const [documents, biometric, gates, softLockReason] = await Promise.all([
       visitorRepo.getDocuments(visitor.id),
       visitorRepo.getBiometric(visitor.id),
       visitorRepo.getVisitorGatePermissions(visitor.id),
+      visitor.status === "SOFT_LOCK" ? getSoftLockReason(visitor.id) : Promise.resolve(null),
     ]);
+
+    if (softLockReason) {
+      visitor.soft_lock_reason = softLockReason;
+    }
 
     res.json({
       success: true,
       visitor,
       documents,
       biometric,
-      allowed_gates: gates
+      allowed_gates: gates,
+      soft_lock_reason: softLockReason
     });
   } catch (error) {
     logger.error("Get Visitor Profile Error:", error);
@@ -167,6 +174,9 @@ export const updateVisitor = async (req, res) => {
             allowed_gates
           );
         }
+
+        // Re-evaluate lock/unlock immediately after relevant field updates
+        await evaluateVisitorLock(id);
     }
 
     if (status) {
@@ -637,6 +647,9 @@ export const extendDocument = async (req, res) => {
       document
     })
 
+    // Re-evaluate lock status immediately
+    await evaluateVisitorLock(document.visitor_id)
+
   } catch (error) {
 
     logger.error("Extend Document Error:", error)
@@ -658,6 +671,7 @@ export const deleteDocument = async (req, res) => {
   try {
 
     const { doc_id } = req.params
+    const existingDoc = await visitorRepo.getDocumentById(doc_id)
 
     const deleted = await visitorRepo.deleteDocument(doc_id)
 
@@ -672,6 +686,11 @@ export const deleteDocument = async (req, res) => {
       success: true,
       message: "Document deleted successfully"
     })
+
+    // Re-evaluate lock status in case this clears expiry issues
+    if (deleted && existingDoc?.visitor_id) {
+      await evaluateVisitorLock(existingDoc.visitor_id);
+    }
 
   } catch (error) {
 

@@ -205,7 +205,17 @@ export default function VisitorsDetail() {
     return <Typography>Visitor not found</Typography>
   }
 
-  const { visitor, documents, biometric, allowed_gates } = profile
+  const { visitor, documents, biometric, allowed_gates, soft_lock_reason } = profile
+  const lockReason =
+    visitor.status === "SOFT_LOCK"
+      ? (
+        soft_lock_reason ||
+        visitor.soft_lock_reason ||
+        visitor.lock_reason ||
+        visitor.reason ||
+        "Compliance issue detected"
+      )
+      : null;
   const allowedGateIds = (allowed_gates || []).map(Number)
   const allowedGateNames =
     gates
@@ -273,10 +283,28 @@ export default function VisitorsDetail() {
   </Typography>
   <Box sx={{ display: "flex", gap: 1, mt: 1 }}>
   <Chip
-    icon={visitor.status === "ACTIVE" ? <CheckCircleIcon /> : <CancelIcon />}
-    label={visitor.status === "ACTIVE" ? "Active Visitor" : "Inactive Visitor"}
+    icon={
+      visitor.status === "ACTIVE"
+        ? <CheckCircleIcon />
+        : visitor.status === "SOFT_LOCK"
+        ? <CancelIcon />
+        : <CancelIcon />
+    }
+    label={
+      visitor.status === "ACTIVE"
+        ? "Active Visitor"
+        : visitor.status === "SOFT_LOCK"
+        ? "Soft Locked"
+        : "Inactive Visitor"
+    }
     size="small"
-    color={visitor.status === "ACTIVE" ? "success" : "error"}
+    color={
+      visitor.status === "ACTIVE"
+        ? "success"
+        : visitor.status === "SOFT_LOCK"
+        ? "warning"
+        : "error"
+    }
     sx={{
       mt: 1,
       fontWeight: 600,
@@ -347,6 +375,15 @@ export default function VisitorsDetail() {
 
   )}
 
+  {visitor.status === "SOFT_LOCK" && (
+    <Alert severity="warning" sx={{ mb: 2 }}>
+      <Typography fontWeight={600}>Soft Locked</Typography>
+      <Typography variant="body2">
+        {lockReason}
+      </Typography>
+    </Alert>
+  )}
+
 
   {/* ================= TABS ================= */}
 
@@ -394,6 +431,9 @@ export default function VisitorsDetail() {
   <Info label="Visible Marks" value={visitor.visible_marks}/>
   <Info label="Pass Valid From" value={formatDate(visitor.valid_from)}/>
   <Info label="Pass Valid Upto" value={formatDate(visitor.valid_to)}/>
+  {visitor.status === "SOFT_LOCK" && (
+    <Info label="Soft Lock Reason" value={lockReason}/>
+  )}
 
   </GridInfo>
 

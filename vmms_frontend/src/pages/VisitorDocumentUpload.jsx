@@ -39,12 +39,14 @@ import { normalizeRole, canEditVisitor } from "../utils/visitorPermissions"
 
 const DOC_TYPES = [
   "AADHAAR",
-  "PASSPORT",
-  "DRIVING_LICENSE",
-  "REGISTRATION_CERTIFICATE",
-  "PUC",
   "COMPANY_ID",
   "VOTER_ID",
+  "PASSPORT",
+  "DRIVING_LICENSE",
+  "VEHICLE_REGISTRATION_CERTIFICATE",
+  "VEHICLE_EMISSION_TEST_CERTIFICATE",
+
+  "POLICE_VERIFICATION_CERTIFICATE",
   "OTHER"
 ]
 

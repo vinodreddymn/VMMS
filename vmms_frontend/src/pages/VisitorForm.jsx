@@ -207,6 +207,10 @@ export default function VisitorsForm() {
 
   const handleChange = (e) => {
     const { name, value } = e.target
+    const normalizedValue =
+      typeof value === "string" && name !== "email"
+        ? value.toUpperCase()
+        : value
 
     if (name === "allowed_gates") {
       const selected = Array.isArray(value)
@@ -219,7 +223,7 @@ export default function VisitorsForm() {
     if (name === "department_id") {
       setForm(prev => ({
         ...prev,
-        department_id: value,
+        department_id: normalizedValue,
         project_id: '',
         host_id: ''
       }))
@@ -229,13 +233,13 @@ export default function VisitorsForm() {
     if (name === "project_id") {
       setForm(prev => ({
         ...prev,
-        project_id: value,
+        project_id: normalizedValue,
         host_id: ''
       }))
       return
     }
 
-    setForm(prev => ({ ...prev, [name]: value }))
+    setForm(prev => ({ ...prev, [name]: normalizedValue }))
   }
 
   const handleBoolChange = (key) => (e) => {
