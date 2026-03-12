@@ -1,4 +1,7 @@
 import http from "http";
+import https from "https";
+import fs from "fs";
+import path from "path";
 import app from "./app.js";
 import env from "./config/env.js";
 import logger from "./utils/logger.util.js";
@@ -7,7 +10,46 @@ import initSocket from "./sockets/realtime.socket.js";
 import { startGateHealthWatcher } from "./services/gateHealthWatcher.service.js";
 import runMigrations from "./utils/migration.util.js";
 
-const server = http.createServer(app);
+// -----------------------------------------------------
+// HTTP / HTTPS SERVER SETUP
+// -----------------------------------------------------
+let server;
+let httpsActive = false;
+
+if (env.useHttps) {
+  try {
+    const keyPath = env.sslKeyPath || path.resolve("assets/certs/server.key");
+    const certPath = env.sslCertPath || path.resolve("assets/certs/server.crt");
+    const pfxPath = env.sslPfxPath || path.resolve("assets/certs/server.pfx");
+
+    let options = {};
+
+    if (fs.existsSync(keyPath) && fs.existsSync(certPath)) {
+      options = {
+        key: fs.readFileSync(keyPath),
+        cert: fs.readFileSync(certPath),
+      };
+      logger.info(`🔒 HTTPS using key/cert (key: ${keyPath}, cert: ${certPath})`);
+    } else if (fs.existsSync(pfxPath)) {
+      options = {
+        pfx: fs.readFileSync(pfxPath),
+        passphrase: env.sslPfxPassphrase || undefined,
+      };
+      logger.info(`🔒 HTTPS using PFX bundle (${pfxPath})`);
+    } else {
+      throw new Error("No SSL certificate files found");
+    }
+
+    server = https.createServer(options, app);
+    httpsActive = true;
+  } catch (err) {
+    logger.error("Failed to initialize HTTPS server. Falling back to HTTP.", err);
+    server = http.createServer(app);
+  }
+} else {
+  server = http.createServer(app);
+}
+
 startGateHealthWatcher();
 
 // Initialize WebSocket
@@ -17,7 +59,7 @@ initSocket(server);
 const PORT = env.port || 5000;
 
 server.listen(PORT, "0.0.0.0", async () => {
-  logger.info(`🚀 VMMS Backend Server running on port ${PORT}`);
+  logger.info(`🚀 VMMS Backend Server running on ${httpsActive ? "HTTPS" : "HTTP"} port ${PORT}`);
   logger.info(`Environment: ${env.nodeEnv}`);
 
   // Test database connection

@@ -25,6 +25,7 @@ import {
 
 import EditIcon from "@mui/icons-material/Edit"
 import DeleteIcon from "@mui/icons-material/Delete"
+import VisibilityIcon from "@mui/icons-material/Visibility"
 
 import {
   uploadVisitorDocument,
@@ -56,6 +57,7 @@ export default function VisitorDocumentUpload() {
 
   const [documents, setDocuments] = useState([])
   const [loading, setLoading] = useState(false)
+  const fileBase = import.meta.env.VITE_FILE_BASE_URL || "http://localhost:5000"
 
   const [docType, setDocType] = useState("")
   const [docNumber, setDocNumber] = useState("")
@@ -260,7 +262,7 @@ export default function VisitorDocumentUpload() {
               <TableCell>Type</TableCell>
               <TableCell>Number</TableCell>
               <TableCell>Expiry</TableCell>
-              <TableCell width={140}>Actions</TableCell>
+              <TableCell width={220}>Actions</TableCell>
             </TableRow>
           </TableHead>
 
@@ -312,6 +314,23 @@ export default function VisitorDocumentUpload() {
                 <TableCell>
 
                   <Stack direction="row" spacing={1}>
+
+                    <Tooltip title="Preview">
+                      <IconButton
+                        color="primary"
+                        size="small"
+                        onClick={() => {
+                          if (doc.file_path) {
+                            const url = `${fileBase}/${doc.file_path}`
+                            window.open(url, "_blank", "noopener,noreferrer")
+                          } else {
+                            alert("File not available for this document")
+                          }
+                        }}
+                      >
+                        <VisibilityIcon />
+                      </IconButton>
+                    </Tooltip>
 
                     <Tooltip title="Extend Validity">
                       <IconButton

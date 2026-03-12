@@ -113,6 +113,10 @@ export const create = async (data) => {
     enrollment_photo_path,
     can_register_labours,
     created_by,
+    vehicle_number,
+    vehicle_make,
+    vehicle_model,
+    vehicle_color,
   } = data;
 
   const toNull = (v) => (v === "" || v === undefined ? null : v);
@@ -200,10 +204,10 @@ export const create = async (data) => {
     toDateOrNull(valid_from),
     toDateOrNull(valid_to),
     toNull(enrollment_photo_path),
-    toNull(params.vehicle_number),
-    toNull(params.vehicle_make),
-    toNull(params.vehicle_model),
-    toNull(params.vehicle_color),
+    toNull(vehicle_number),
+    toNull(vehicle_make),
+    toNull(vehicle_model),
+    toNull(vehicle_color),
     toIntOrNull(created_by),
     toBoolOrNull(can_register_labours) ?? false,
   ];
@@ -378,6 +382,10 @@ const ALLOWED_UPDATE_FIELDS = [
   "ops_area_permitted",
   "enrollment_photo_path",
   "can_register_labours",
+  "vehicle_number",
+  "vehicle_make",
+  "vehicle_model",
+  "vehicle_color",
 ];
 
 export const update = async (id, updates) => {

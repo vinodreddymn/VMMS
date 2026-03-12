@@ -226,7 +226,8 @@ export default function VisitorsDetail() {
 
   const fullName = `${visitor.first_name || ''} ${visitor.last_name || ''}`.trim()
 
-  const fileBase = import.meta.env.VITE_FILE_BASE_URL || 'http://localhost:5000'
+  const apiBase = import.meta.env.VITE_FILE_BASE_URL || `${window.location.hostname ? `${window.location.hostname}` : 'localhost'}:5000`
+  const fileBase = `${window.location.protocol}//${apiBase.replace(/^https?:\/\//, "")}`
 
   return (
   <Box>

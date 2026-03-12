@@ -232,7 +232,7 @@ export default function VisitorsList() {
 
   /* ---------------- RENDER ---------------- */
   return (
-    <Container maxWidth="xl">
+    <Container maxWidth="xxl">
 
       {/* SEARCH and New Registration*/}
       <Paper

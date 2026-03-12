@@ -171,27 +171,31 @@ export default function VisitorsForm() {
           if (val === 'true' || val === 't' || val === 1 || val === '1') return true
           return false
         }
-  setForm((prev) => ({
-    ...prev,
-    ...v,
+        const safe = (val) => (val === null || val === undefined ? '' : val)
+
+        setForm((prev) => ({
+          ...prev,
+          ...Object.fromEntries(
+            Object.entries(v).map(([k, val]) => [k, safe(val)])
+          ),
           aadhaar: '',
           date_of_birth: toDate(v.date_of_birth),
           work_order_expiry: toDate(v.work_order_expiry),
           pvc_expiry: toDate(v.pvc_expiry),
           smartphone_expiry: toDate(v.smartphone_expiry),
-    laptop_expiry: toDate(v.laptop_expiry),
-    valid_from: toDate(v.valid_from),
-    valid_to: toDate(v.valid_to),
-    smartphone_allowed: toBool(v.smartphone_allowed),
-    laptop_allowed: toBool(v.laptop_allowed),
-    ops_area_permitted: toBool(v.ops_area_permitted),
-    can_register_labours: toBool(v.can_register_labours),
-    vehicle_number: v.vehicle_number || '',
-    vehicle_make: v.vehicle_make || '',
-    vehicle_model: v.vehicle_model || '',
-    vehicle_color: v.vehicle_color || '',
-    allowed_gates: (res?.data?.allowed_gates || []).map((g) => Number(g)),
-  }))
+          laptop_expiry: toDate(v.laptop_expiry),
+          valid_from: toDate(v.valid_from),
+          valid_to: toDate(v.valid_to),
+          smartphone_allowed: toBool(v.smartphone_allowed),
+          laptop_allowed: toBool(v.laptop_allowed),
+          ops_area_permitted: toBool(v.ops_area_permitted),
+          can_register_labours: toBool(v.can_register_labours),
+          vehicle_number: safe(v.vehicle_number),
+          vehicle_make: safe(v.vehicle_make),
+          vehicle_model: safe(v.vehicle_model),
+          vehicle_color: safe(v.vehicle_color),
+          allowed_gates: (res?.data?.allowed_gates || []).map((g) => Number(g)),
+        }))
       } catch (err) {
         console.error('Failed to load visitor', err)
       } finally {

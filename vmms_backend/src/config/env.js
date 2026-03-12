@@ -6,6 +6,11 @@ const env = {
   port: process.env.PORT || 5000,
   nodeEnv: process.env.NODE_ENV || "development",
   jwtSecret: process.env.JWT_SECRET,
+  useHttps: String(process.env.USE_HTTPS || "").toLowerCase() === "true",
+  sslKeyPath: process.env.SSL_KEY_PATH,
+  sslCertPath: process.env.SSL_CERT_PATH,
+  sslPfxPath: process.env.SSL_PFX_PATH,
+  sslPfxPassphrase: process.env.SSL_PFX_PASSPHRASE,
 
   db: {
     host: process.env.DB_HOST,

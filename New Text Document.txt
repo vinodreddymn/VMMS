@@ -20,6 +20,7 @@ PGPASSWORD=india123 psql -h <host> -p 5432 -U svr_user -f vmms_db_globals_2026-0
 PGPASSWORD=india123 pg_restore -h <host> -p 5432 -U svr_user -d vmms_db -c vmms_db_2026-03-10.dump
 
 
+dotnet dev-certs https --trust --export-path assets/certs/server.pfx --password india123
 
 
 
