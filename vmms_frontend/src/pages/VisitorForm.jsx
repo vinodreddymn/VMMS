@@ -27,6 +27,7 @@ export default function VisitorsForm() {
   const [departments, setDepartments] = useState([])
   const [visitorTypes, setVisitorTypes] = useState([])
   const [hosts, setHosts] = useState([])
+  const [gates, setGates] = useState([])
   const [filteredProjects, setFilteredProjects] = useState([])
   const [filteredHosts, setFilteredHosts] = useState([])
   const [form, setForm] = useState({
@@ -66,7 +67,8 @@ export default function VisitorsForm() {
     ops_area_permitted: false,
     can_register_labours: false,
     valid_from: '',
-    valid_to: ''
+    valid_to: '',
+    allowed_gates: []
   })
 
 
@@ -140,6 +142,7 @@ export default function VisitorsForm() {
         setDepartments(data.departments || [])
         setVisitorTypes(data.visitorTypes || [])
         setHosts(data.hosts || [])
+        setGates(data.gates || [])
       } catch (err) {
         console.error('Failed to load master data', err)
       } finally {
@@ -179,6 +182,7 @@ export default function VisitorsForm() {
           laptop_allowed: toBool(v.laptop_allowed),
           ops_area_permitted: toBool(v.ops_area_permitted),
           can_register_labours: toBool(v.can_register_labours),
+          allowed_gates: (res?.data?.allowed_gates || []).map((g) => Number(g)),
         }))
       } catch (err) {
         console.error('Failed to load visitor', err)
@@ -191,6 +195,14 @@ export default function VisitorsForm() {
 
   const handleChange = (e) => {
     const { name, value } = e.target
+
+    if (name === "allowed_gates") {
+      const selected = Array.isArray(value)
+        ? value.map((v) => Number(v))
+        : []
+      setForm(prev => ({ ...prev, allowed_gates: selected }))
+      return
+    }
 
     if (name === "department_id") {
       setForm(prev => ({
@@ -242,6 +254,7 @@ export default function VisitorsForm() {
         laptop_allowed: Boolean(form.laptop_allowed),
         ops_area_permitted: Boolean(form.ops_area_permitted),
         can_register_labours: Boolean(form.can_register_labours),
+        allowed_gates: (form.allowed_gates || []).map((g) => Number(g)).filter((g) => !Number.isNaN(g)),
       }
       if (isEdit) {
         await updateVisitor(id, payload)
@@ -556,6 +569,47 @@ export default function VisitorsForm() {
   onChange={handleChange}
   InputLabelProps={{shrink:true}}
   />
+
+  </Grid>
+
+  </SectionCard>
+
+
+
+  {/* ================= GATE PERMISSIONS ================= */}
+
+  <SectionCard title="Gate Permissions">
+
+  <Grid container spacing={2}>
+
+  <Grid size={{ xs: 12, sm: 6 }}>
+    <TextField
+      select
+      fullWidth
+      label="Allowed Gates"
+      name="allowed_gates"
+      value={form.allowed_gates}
+      onChange={handleChange}
+      SelectProps={{
+        multiple: true,
+        renderValue: (selected) => {
+          if (!selected?.length) return "All gates"
+          const names = gates
+            .filter((g) => selected.includes(g.id))
+            .map((g) => g.gate_name || g.name || `Gate ${g.id}`)
+          return names.join(", ")
+        }
+      }}
+      helperText="Select one or more gates. Leave empty for all gates."
+    >
+      {gates.map((g) => (
+        <MenuItem key={g.id} value={g.id}>
+          <Checkbox checked={form.allowed_gates.includes(g.id)} />
+          <Typography sx={{ ml: 1 }}>{g.gate_name || g.name}</Typography>
+        </MenuItem>
+      ))}
+    </TextField>
+  </Grid>
 
   </Grid>
 

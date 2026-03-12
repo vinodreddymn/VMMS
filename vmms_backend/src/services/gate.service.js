@@ -66,6 +66,23 @@ class GateAuthService {
         return { status: "FAILED", error_code: "E103" };
       }
 
+      // Gate permission check
+      const allowedGates = await visitorRepo.getVisitorGatePermissions(visitor.id);
+      const gateAllowed =
+        !Array.isArray(allowedGates) ||
+        allowedGates.length === 0 ||
+        allowedGates.includes(resolvedGateId);
+
+      if (!gateAllowed) {
+        return {
+          status: "FAILED",
+          error_code: "E105",
+          error: "Gate not permitted for this visitor",
+          allowed_gates: allowedGates,
+          gate_id: resolvedGateId,
+        };
+      }
+
       const lastLog = await gateRepo.getLastLog("VISITOR", visitor.id);
       const direction = lastLog?.direction === "IN" ? "OUT" : "IN";
 
@@ -149,6 +166,8 @@ class GateAuthService {
         valid_to: visitor.valid_to,
         enrollment_photo_path: visitor.enrollment_photo_path,
         gate_id: resolvedGateId,
+        visitor_id: visitor.id,
+        allowed_gates: allowedGates,
       };
     } catch (error) {
       logger.error("Gate authentication error:", error);

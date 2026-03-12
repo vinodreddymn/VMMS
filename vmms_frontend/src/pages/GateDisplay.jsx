@@ -135,6 +135,19 @@ export default function GateDisplay() {
     resetDisplay()
   }
 
+  const gateNameById = (id) => {
+    const g = gates.find(
+      (x) => Number(x.id) === Number(id) || Number(x.gate_id) === Number(id)
+    )
+    return g?.gate_name || g?.name || `Gate ${id}`
+  }
+
+  const renderGateGuidance = (allowed = []) => {
+    if (!allowed?.length) return ''
+    const names = allowed.map((id) => gateNameById(id)).join(', ')
+    return `Please proceed to: ${names}`
+  }
+
   const handleGateChange = (newGateId) => {
     const normalized = Number(newGateId) || null
     setGateId(normalized)
@@ -232,6 +245,17 @@ export default function GateDisplay() {
       if ((v.data?.status || '').toUpperCase() === 'SUCCESS') {
         const normalized = normalizeVisitor(v.data, uid)
         displayAccess(normalized, photo)
+        setRfidInput('')
+        return
+      }
+
+      if (v.data?.error_code === 'E105') {
+        const guidance = renderGateGuidance(v.data?.allowed_gates)
+        displayError(
+          guidance
+            ? `Access denied at this gate. ${guidance}`
+            : 'Access denied: gate not permitted for this visitor'
+        )
         setRfidInput('')
         return
       }

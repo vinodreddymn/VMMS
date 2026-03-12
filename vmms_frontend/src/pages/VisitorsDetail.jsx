@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { getVisitor } from '../api/visitor.api'
 import labourApi from '../api/labour.api'
-import { getGates } from '../api/master.api'
+import { getMasters } from '../api/master.api'
 import { getTransactions } from '../api/analytics.api'
 import useAuthStore from '../store/auth.store'
 import CheckCircleIcon from '@mui/icons-material/CheckCircle'
@@ -31,6 +31,7 @@ export default function VisitorsDetail() {
   const [manifests, setManifests] = useState([])
   const [manifestsLoading, setManifestsLoading] = useState(false)
   const [gates, setGates] = useState([])
+  const [hosts, setHosts] = useState([])
 
   const todayISO = () => new Date().toISOString().split('T')[0]
 
@@ -46,11 +47,16 @@ export default function VisitorsDetail() {
   const [labourHistoryLoading, setLabourHistoryLoading] = useState(false)
 
   useEffect(() => {
-    getGates()
+    getMasters()
       .then((res) => {
-        setGates(res?.data?.gates || [])
+        const data = res?.data?.data || {}
+        setGates(data.gates || [])
+        setHosts(data.hosts || [])
       })
-      .catch(() => setGates([]))
+      .catch(() => {
+        setGates([])
+        setHosts([])
+      })
   }, [])
 
   useEffect(() => {
@@ -85,6 +91,7 @@ export default function VisitorsDetail() {
 
     return () => (mounted = false)
   }, [id])
+
 
   // Latest overall status (independent of date filter)
   useEffect(() => {
@@ -199,10 +206,23 @@ export default function VisitorsDetail() {
   }
 
   const { visitor, documents, biometric, allowed_gates } = profile
+  const allowedGateIds = (allowed_gates || []).map(Number)
   const allowedGateNames =
     gates
-      .filter(g => allowed_gates?.includes(g.id))
+      .filter(g => allowedGateIds.includes(Number(g.id)))
       .map(g => g.gate_name)
+  const gateLabels = allowedGateIds.length
+    ? (allowedGateNames.length ? allowedGateNames : allowedGateIds.map(g => `Gate ${g}`))
+    : ['All Gates']
+  const hostLookup = hosts.find(h => Number(h.id) === Number(visitor.host_id))
+  const hostDisplay =
+    visitor.host_name ||
+    hostLookup?.host_name ||
+    hostLookup?.full_name ||
+    hostLookup?.name ||
+    visitor.host_full_name ||
+    visitor.host ||
+    (visitor.host_id ? `Host ID: ${visitor.host_id}` : "-")
 
   const fullName = `${visitor.first_name || ''} ${visitor.last_name || ''}`.trim()
 
@@ -365,7 +385,7 @@ export default function VisitorsDetail() {
   <Info label="Designation" value={visitor.designation}/>
   <Info label="Department" value={visitor.department_name}/>
   <Info label="Project" value={visitor.project_name}/>
-  <Info label="Host" value={visitor.host_name}/>
+  <Info label="Host" value={hostDisplay}/>
   <Info label="Gender" value={visitor.gender}/>
   <Info label="Blood Group" value={visitor.blood_group}/>
   <Info label="Height (cm)" value={visitor.height_cm}/>
@@ -421,19 +441,9 @@ export default function VisitorsDetail() {
 
   <Box display="flex" gap={1} flexWrap="wrap">
 
-  {allowedGateNames?.length ? (
-
-  allowedGateNames.map((g,i)=>(
-  <Chip key={i} label={g} color="primary" variant="outlined"/>
-  ))
-
-  ):(
-
-  <Typography variant="body2">
-  No gate restrictions
-  </Typography>
-
-  )}
+  {gateLabels.map((g,i)=>(
+    <Chip key={i} label={g} color="primary" variant="outlined"/>
+  ))}
 
   </Box>
 
