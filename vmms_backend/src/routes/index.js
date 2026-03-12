@@ -16,6 +16,7 @@ import reportRoutes from "./report.routes.js";
 import adminRoutes from "./admin.routes.js";
 import masterRoutes from "./master.routes.js"; // unified dropdown masters
 import andonRoutes from "./andon.routes.js";
+import mediaRoutes from "./media.routes.js";
 
 const router = express.Router();
 
@@ -37,6 +38,8 @@ router.use("/masters", masterRoutes);
 
 // Public display (Andon)
 router.use("/public/andon", andonRoutes);
+// Public media playlist
+router.use("/media", mediaRoutes);
 
 
 /* =====================================================

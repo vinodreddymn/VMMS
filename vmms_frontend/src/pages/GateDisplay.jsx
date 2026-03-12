@@ -20,6 +20,7 @@ import CameraAltIcon from '@mui/icons-material/CameraAlt'
 import api from '../api/axios'
 import { getMasters } from '../api/master.api'
 import AndonHeader from '../components/andon/AndonHeader'
+import GateMediaPlayer from "../components/GateMediaPlayer"
 
 const LOCAL_GATE_KEY = 'gateDisplay.selectedGateId'
 const STAFF_CODE = import.meta.env.VITE_GATE_SETUP_CODE || 'VMMS-STAFF'
@@ -135,6 +136,15 @@ export default function GateDisplay() {
       inputRef.current?.focus()
     }, 7000)
   }
+
+  const DetailRow = ({ label, value }) => (
+    <Box display="flex" justifyContent="space-between">
+      <Typography sx={{ color: "rgba(226,232,240,0.7)", fontSize: 13 }}>
+        {label}
+      </Typography>
+      <Typography fontWeight={600}>{value || "-"}</Typography>
+    </Box>
+  );
 
   const displayError = (msg) => {
     setCurrentAccess(null)
@@ -380,97 +390,174 @@ export default function GateDisplay() {
       {/* HIDDEN VIDEO STREAM FOR CAPTURE ONLY */}
       <video ref={videoRef} autoPlay playsInline style={{ display: 'none' }} />
 
-      <Box sx={styles.headerWrap}>
-        <AndonHeader now={now} headerDate={headerDate} />
-      </Box>
+      
+      <AndonHeader now={now} headerDate={headerDate} />
+      
 
       {/* STATUS BANNER */}
+
       <Box
         sx={{
           ...styles.banner,
+          px: 5,
+          py: 0,
+          borderRadius: 2,
+          display: "grid",
+          gridTemplateColumns: "1fr auto 1fr",
+          alignItems: "center",
           background: errorMessage
-            ? 'linear-gradient(90deg, #f59e0b 0%, #f97316 100%)'
+            ? "linear-gradient(90deg,#ef4444,#f97316)"
             : currentAccess
-            ? currentAccess.direction === 'IN'
-              ? 'linear-gradient(90deg, #10b981 0%, #22c55e 100%)'
-              : 'linear-gradient(90deg, #ef4444 0%, #f97316 100%)'
-            : 'linear-gradient(90deg, #0f172a 0%, #1f2937 100%)',
+            ? currentAccess.direction === "IN"
+              ? "linear-gradient(90deg,#10b981,#22c55e)"
+              : "linear-gradient(90deg,#f97316,#ef4444)"
+            : "linear-gradient(90deg,#0f172a,#1f2937)",
+          boxShadow: "0 8px 25px rgba(0,0,0,0.25)"
         }}
       >
-        <Box>
-          <Typography sx={styles.bannerTitle}>
+        {/* LEFT : STATUS MESSAGE */}
+        <Stack spacing={0.5}>
+          <Typography
+            sx={{
+              fontSize: 34,
+              fontWeight: 900,
+              letterSpacing: 2,
+              lineHeight: 1,
+              color: "#ffffff"
+            }}
+          >
             {errorMessage
-              ? 'ACCESS DENIED'
+              ? "ACCESS DENIED"
               : currentAccess
-              ? currentAccess.direction === 'IN'
-                ? 'ENTRY AUTHORIZED'
-                : 'EXIT AUTHORIZED'
-              : 'READY FOR RFID'}
+              ? currentAccess.direction === "IN"
+                ? "ENTRY AUTHORIZED"
+                : "EXIT AUTHORIZED"
+              : "READY FOR RFID"}
           </Typography>
-          <Typography sx={styles.bannerSubtitle}>
+
+          <Typography
+            sx={{
+              fontSize: 16,
+              opacity: 0.9,
+              color: "#f1f5f9",
+              fontWeight: 500
+            }}
+          >
             {successMessage ||
               errorMessage ||
-              (currentGate ? `Tap RFID card or enter UID at ${currentGate.gate_name}` : 'Select a gate to begin')}
+              (currentGate
+                ? `Scan RFID card or enter UID`
+                : "System ready for access verification")}
           </Typography>
-        </Box>
-        <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" justifyContent="flex-end">
-          {currentGate && <Chip label={currentGate.gate_name} color="primary" variant="outlined" />}
-          <Chip label={`Gate ID: ${gateId || 'N/A'}`} variant="outlined" />
-          <Chip
-            label={currentGate?.is_active ? 'Active' : 'Inactive'}
-            color={currentGate?.is_active ? 'success' : 'default'}
-            variant="outlined"
-          />
-          <Button variant="text" size="small" color="inherit" onClick={requestGateChange} sx={{ textDecoration: 'underline' }}>
-            Change gate (staff)
-          </Button>
         </Stack>
+
+        {/* CENTER : GATE NAME */}
+        <Box
+          sx={{
+            display: "flex",
+            justifyContent: "center",
+            alignItems: "center"
+          }}
+        >
+          {currentGate && (
+            <Typography
+              sx={{
+                fontSize: 32,
+                fontWeight: 900,
+                color: "#ffffff",
+                letterSpacing: 2,
+                px: 3,
+                py: 1,
+                borderRadius: 2,
+                background: "rgba(255,255,255,0.12)",
+                border: "1px solid rgba(255,255,255,0.25)",
+                backdropFilter: "blur(6px)"
+              }}
+            >
+              {currentGate.gate_name}
+            </Typography>
+          )}
+        </Box>
+
+        {/* RIGHT : ACTION */}
+        <Box sx={{ display: "flex", justifyContent: "flex-end" }}>
+          <Button
+            variant="text"
+            size="small"
+            color="inherit"
+            onClick={requestGateChange}
+            sx={{
+              textDecoration: "underline",
+              fontWeight: 600,
+              fontSize: 14
+            }}
+          >
+            Change Gate
+          </Button>
+        </Box>
       </Box>
 
       <Box sx={{ px: { xs: 2, md: 3 }, py: { xs: 2, md: 3 } }}>
         <Grid container spacing={2} alignItems="stretch">
           {/* LEFT: INPUT + INSTRUCTIONS */}
-          <Grid size={{ xs: 12, md: 4, lg: 3 }}>
-            <Paper sx={styles.cardLight}>
-              <Typography variant="overline" sx={{ color: '#0ea5e9', fontWeight: 700, letterSpacing: 2, display: 'block', mb: 1 }}>
-                Gate Console
-              </Typography>
-
-              <Stack spacing={1} sx={{ mb: 2 }}>
-                {currentGate ? (
-                  <>
-                    <Chip label={currentGate.gate_name} color="primary" />
-                    <Chip label={currentGate.ip_address || 'No IP'} variant="outlined" />
-                    <Chip label={currentGate.device_serial || 'No Device'} variant="outlined" />
-                    <Chip
-                      label={currentGate.is_active ? 'Active' : 'Inactive'}
-                      color={currentGate.is_active ? 'success' : 'default'}
-                      variant="outlined"
-                    />
-                  </>
-                ) : (
-                  <Alert severity="info">
-                    {gatesLoading ? 'Loading gates…' : 'No gates found. Please add a gate in Admin > Gates.'}
-                  </Alert>
-                )}
-              </Stack>
+          <Grid size={{ xs: 12, md: 4, lg: 2 }}>
+            <Paper
+              sx={{
+                ...styles.cardLight,
+                p: 3,
+                borderRadius: 3,
+                border: "1px solid rgba(15,23,42,0.08)",
+                boxShadow: "0 10px 30px rgba(0,0,0,0.06)",
+                height: "100%"
+              }}
+            >
+              {/* INSTRUCTION HEADER */}
               {!currentAccess && (
                 <>
-                  <Typography variant="h5" fontWeight={800} gutterBottom>
-                    Visitor Instructions
+                  <Typography
+                    variant="overline"
+                    sx={{
+                      color: "#0ea5e9",
+                      fontWeight: 700,
+                      letterSpacing: 2,
+                      display: "block",
+                      mb: 1
+                    }}
+                  >
+                    VISITOR INSTRUCTIONS
                   </Typography>
-                  <Stack spacing={1.2} sx={{ mb: 2, color: '#0f172a' }}>
-                    <Typography>Stand on the floor marker facing the camera.</Typography>
-                    <Typography>Keep your face clear. Remove helmet or mask.</Typography>
-                    <Typography>Look straight and hold still during capture.</Typography>
-                    <Typography>Tap RFID card or enter UID below.</Typography>
+
+                  <Typography variant="h5" fontWeight={800} gutterBottom>
+                    Access Verification
+                  </Typography>
+
+                  {/* INSTRUCTION LIST */}
+                  <Stack
+                    spacing={1.3}
+                    sx={{
+                      mb: 3,
+                      p: 2,
+                      borderRadius: 2,
+                      bgcolor: "#f8fafc",
+                      border: "1px solid #e2e8f0"
+                    }}
+                  >
+                    <Typography>1. Stand on the floor marker.</Typography>
+                    <Typography>2. Face the camera directly.</Typography>
+                    <Typography>3. Remove helmet, mask, or glasses.</Typography>
+                    <Typography>4. Keep still during photo capture.</Typography>
+                    <Typography>5. Tap RFID card or enter UID below.</Typography>
                   </Stack>
-                  <Divider sx={{ my: 2, borderColor: 'rgba(15,23,42,0.12)' }} />
+
+                  <Divider sx={{ mb: 3 }} />
                 </>
               )}
 
+              {/* INPUT FORM */}
               <Box component="form" onSubmit={handleScan}>
-                <Stack spacing={2}>
+                <Stack spacing={2.2}>
+
+                  {/* RFID INPUT */}
                   <TextField
                     inputRef={inputRef}
                     label="RFID / Token UID"
@@ -480,14 +567,40 @@ export default function GateDisplay() {
                     fullWidth
                     autoFocus
                     disabled={selectingGate}
-                    sx={{ bgcolor: '#f8fafc', borderRadius: 1 }}
+                    sx={{
+                      bgcolor: "#f8fafc",
+                      borderRadius: 1,
+                      "& .MuiOutlinedInput-root": {
+                        fontSize: 16,
+                        fontWeight: 600
+                      }
+                    }}
                   />
-                  <Button variant="contained" type="submit" disabled={loading || selectingGate || !gateId}>
-                    {loading ? <CircularProgress size={22} /> : 'Verify Access'}
+
+                  {/* VERIFY BUTTON */}
+                  <Button
+                    variant="contained"
+                    size="large"
+                    type="submit"
+                    disabled={loading || selectingGate || !gateId}
+                    sx={{
+                      py: 1.4,
+                      fontWeight: 700,
+                      fontSize: 16,
+                      borderRadius: 2
+                    }}
+                  >
+                    {loading ? <CircularProgress size={22} /> : "Verify Access"}
                   </Button>
+
+                  {/* CAMERA STATUS */}
                   <Chip
-                    label={cameraReady ? 'Camera Ready' : 'Camera Off'}
-                    color={cameraReady ? 'success' : 'error'}
+                    label={cameraReady ? "Camera Ready" : "Camera Not Available"}
+                    color={cameraReady ? "success" : "error"}
+                    sx={{
+                      fontWeight: 600,
+                      justifyContent: "center"
+                    }}
                   />
                 </Stack>
               </Box>
@@ -495,100 +608,204 @@ export default function GateDisplay() {
           </Grid>
 
           {/* CENTER: PHOTOS + STATUS */}
-          <Grid size={{ xs: 12, md: 5, lg: 5 }}>
-            <Paper sx={styles.cardLight}>
-              {!currentAccess ? (
-                <Stack spacing={2} alignItems="center" sx={{ mt: 6, color: '#0f172a' }}>
-                  <CameraAltIcon sx={{ fontSize: 54, opacity: 0.5 }} />
-                  <Typography variant="h5" fontWeight={700}>Waiting for RFID / Token</Typography>
-                  <Typography color="text.secondary">
-                    Capture will happen automatically on success.
-                  </Typography>
-                </Stack>
-              ) : (
-                <Stack spacing={2}>
-                  <Box display="flex" justifyContent="space-between" alignItems="center">
-                    <Box>
-                      <Typography variant="h4" fontWeight={800}>
-                        {currentAccess.full_name}
-                      </Typography>
-                      <Typography color="text.secondary">
-                        {currentAccess.person_type} ? {currentAccess.direction === 'IN' ? 'Entry' : 'Exit'}
-                      </Typography>
-                    </Box>
-                    <Chip label={currentAccess.person_type} color="info" />
+          {/* CENTER: MEDIA / VERIFICATION */}
+          <Grid size={{ xs: 12, md: 5, lg: 6 }}>
+            <Paper
+              sx={{
+                ...styles.cardLight,
+                p: 3,
+                height: "100%",
+                borderRadius: 3,
+                border: "1px solid rgba(15,23,42,0.08)",
+                boxShadow: "0 10px 30px rgba(0,0,0,0.06)",
+                overflow: "hidden"
+              }}
+            >
+
+            {/* IDLE STATE → PLAY MEDIA */}
+            {!currentAccess && (
+              <GateMediaPlayer idle />
+            )}
+
+            {/* VERIFICATION STATE */}
+            {currentAccess && (
+              <Stack spacing={3}>
+
+                {/* PERSON HEADER */}
+                <Box display="flex" justifyContent="space-between" alignItems="center">
+                  <Box>
+                    <Typography variant="h4" fontWeight={800}>
+                      {currentAccess.full_name}
+                    </Typography>
+
+                    <Typography color="text.secondary">
+                      {currentAccess.person_type} • {currentAccess.direction === "IN" ? "Entry" : "Exit"}
+                    </Typography>
                   </Box>
 
-                  <Box display="flex" gap={2} flexWrap="wrap">
-                    <Box sx={{ flex: 1, minWidth: 220 }}>
-                      <Typography variant="caption" sx={{ fontWeight: 700, color: '#475569' }}>Registered Photo</Typography>
+                  <Stack spacing={1}>
+                    <Chip
+                      label={currentAccess.person_type}
+                      color="info"
+                      sx={{ fontWeight: 600 }}
+                    />
+
+                    <Chip
+                      label={currentAccess.direction === "IN" ? "ENTRY" : "EXIT"}
+                      color={currentAccess.direction === "IN" ? "success" : "warning"}
+                      sx={{ fontWeight: 700 }}
+                    />
+                  </Stack>
+                </Box>
+
+                <Divider />
+
+                {/* PHOTO COMPARISON */}
+                <Grid container spacing={2}>
+
+                  <Grid size={6}>
+                    <Stack spacing={1} alignItems="center">
+                      <Typography variant="caption">REGISTERED PHOTO</Typography>
+
                       <Box
                         component="img"
                         src={resolvePhoto(registeredPhoto)}
-                        alt="Registered"
                         sx={{
-                          width: '100%',
-                          height: 160,
-                          objectFit: 'cover',
-                          borderRadius: 2,
-                          bgcolor: '#f1f5f9',
-                          border: '1px solid rgba(15,23,42,0.08)',
+                          width: "100%",
+                          maxWidth: 220,
+                          height: 220,
+                          objectFit: "cover",
+                          borderRadius: 2
                         }}
                       />
-                    </Box>
-                    <Box sx={{ flex: 1, minWidth: 220 }}>
-                      <Typography variant="caption" sx={{ fontWeight: 700, color: '#475569' }}>Captured Photo</Typography>
+                    </Stack>
+                  </Grid>
+
+                  <Grid size={6}>
+                    <Stack spacing={1} alignItems="center">
+                      <Typography variant="caption">LIVE CAPTURE</Typography>
+
                       <Box
                         component="img"
-                        src={livePhoto || ''}
-                        alt="Captured"
+                        src={livePhoto || ""}
                         sx={{
-                          width: '100%',
-                          height: 160,
-                          objectFit: 'cover',
+                          width: "100%",
+                          maxWidth: 220,
+                          height: 220,
+                          objectFit: "cover",
                           borderRadius: 2,
-                          bgcolor: '#f1f5f9',
-                          border: '1px solid rgba(15,23,42,0.08)',
+                          border: "2px solid #3b82f6"
                         }}
                       />
-                    </Box>
-                  </Box>
-                </Stack>
-              )}
+                    </Stack>
+                  </Grid>
+
+                </Grid>
+
+              </Stack>
+            )}
+
             </Paper>
           </Grid>
 
           {/* RIGHT: DETAILS STRIP */}
           <Grid size={{ xs: 12, md: 3, lg: 4 }}>
-            <Paper sx={styles.cardDark}>
-              <Typography variant="h6" fontWeight={700} gutterBottom>
-                Details
+            <Paper
+              sx={{
+                ...styles.cardDark,
+                p: 3,
+                borderRadius: 3,
+                border: "1px solid rgba(255,255,255,0.08)",
+                height: "100%"
+              }}
+            >
+              {/* HEADER */}
+              <Typography
+                variant="h6"
+                fontWeight={800}
+                sx={{ mb: 2, letterSpacing: 1 }}
+              >
+                ACCESS DETAILS
               </Typography>
+
               {!currentAccess ? (
                 <Typography color="rgba(226,232,240,0.7)">
                   No visitor data yet.
                 </Typography>
-              ) : currentAccess.person_type === 'LABOUR' ? (
-                <Stack spacing={1}>
-                  <Typography>Supervisor: {currentAccess.supervisor_name}</Typography>
-                  <Typography>Valid Until: {currentAccess.valid_until ? new Date(currentAccess.valid_until).toLocaleString() : '-'}</Typography>
-                  <Typography>Token UID: {currentAccess.rfid_uid}</Typography>
+              ) : currentAccess.person_type === "LABOUR" ? (
+
+                /* LABOUR DETAILS */
+                <Stack spacing={1.5}>
+                  <DetailRow label="Supervisor" value={currentAccess.supervisor_name} />
+                  <DetailRow
+                    label="Valid Until"
+                    value={
+                      currentAccess.valid_until
+                        ? new Date(currentAccess.valid_until).toLocaleString()
+                        : "-"
+                    }
+                  />
+                  <DetailRow label="Token UID" value={currentAccess.rfid_uid} />
                 </Stack>
+
               ) : (
-                <Stack spacing={1.2}>
-                  <Typography>Aadhaar (Last 4): {currentAccess.aadhaar_last4}</Typography>
-                  <Typography>Project: {currentAccess.project_name}</Typography>
-                  <Typography>Department: {currentAccess.department_name}</Typography>
-                  <Typography>Company: {currentAccess.company_name}</Typography>
-                  <Typography>Visitor Type: {currentAccess.visitor_type_name}</Typography>
-                  <Typography>Host: {currentAccess.host_name}</Typography>
-                  <Typography>Mobile Allowed: {currentAccess.smartphone_allowed ? 'YES' : 'NO'}</Typography>
-                  <Typography>Laptop Allowed: {currentAccess.laptop_allowed ? 'YES' : 'NO'}</Typography>
-                  <Typography>Ops Area: {currentAccess.ops_area_permitted ? 'YES' : 'NO'}</Typography>
-                  <Typography>Labour Register: {currentAccess.can_register_labours ? 'YES' : 'NO'}</Typography>
-                  <Typography>Valid From: {currentAccess.valid_from ? new Date(currentAccess.valid_from).toLocaleDateString() : '-'}</Typography>
-                  <Typography>Valid To: {currentAccess.valid_to ? new Date(currentAccess.valid_to).toLocaleDateString() : '-'}</Typography>
-                  <Typography>RFID UID: {currentAccess.rfid_uid}</Typography>
+
+                /* VISITOR DETAILS */
+                <Stack spacing={1.4}>
+                  <DetailRow label="Aadhaar (Last 4)" value={currentAccess.aadhaar_last4} />
+                  <DetailRow label="Project" value={currentAccess.project_name} />
+                  <DetailRow label="Department" value={currentAccess.department_name} />
+                  <DetailRow label="Company" value={currentAccess.company_name} />
+                  <DetailRow label="Visitor Type" value={currentAccess.visitor_type_name} />
+                  <DetailRow label="Host" value={currentAccess.host_name} />
+
+                  <Divider sx={{ borderColor: "rgba(255,255,255,0.1)", my: 1 }} />
+
+                  {/* PERMISSIONS */}
+                  <Stack direction="row" flexWrap="wrap" gap={1}>
+                    <Chip
+                      label={`Mobile: ${currentAccess.smartphone_allowed ? "YES" : "NO"}`}
+                      color={currentAccess.smartphone_allowed ? "success" : "default"}
+                      size="small"
+                    />
+                    <Chip
+                      label={`Laptop: ${currentAccess.laptop_allowed ? "YES" : "NO"}`}
+                      color={currentAccess.laptop_allowed ? "success" : "default"}
+                      size="small"
+                    />
+                    <Chip
+                      label={`Ops Area: ${currentAccess.ops_area_permitted ? "YES" : "NO"}`}
+                      color={currentAccess.ops_area_permitted ? "success" : "default"}
+                      size="small"
+                    />
+                    <Chip
+                      label={`Labour Register: ${currentAccess.can_register_labours ? "YES" : "NO"}`}
+                      color={currentAccess.can_register_labours ? "success" : "default"}
+                      size="small"
+                    />
+                  </Stack>
+
+                  <Divider sx={{ borderColor: "rgba(255,255,255,0.1)", my: 1 }} />
+
+                  <DetailRow
+                    label="Valid From"
+                    value={
+                      currentAccess.valid_from
+                        ? new Date(currentAccess.valid_from).toLocaleDateString()
+                        : "-"
+                    }
+                  />
+
+                  <DetailRow
+                    label="Valid To"
+                    value={
+                      currentAccess.valid_to
+                        ? new Date(currentAccess.valid_to).toLocaleDateString()
+                        : "-"
+                    }
+                  />
+
+                  <DetailRow label="RFID UID" value={currentAccess.rfid_uid} />
                 </Stack>
               )}
             </Paper>
@@ -596,6 +813,65 @@ export default function GateDisplay() {
         </Grid>
 
       </Box>
+
+      <Box
+          sx={{
+            ...styles.banner,
+            px: 5,
+            py: 0,
+            borderRadius: 2,
+
+            display: "grid",
+            gridTemplateColumns: "1fr auto 1fr",
+            alignItems: "center",
+
+            position: "relative",
+            overflow: "hidden",
+
+            background: errorMessage
+              ? "linear-gradient(90deg,#ef4444,#f97316)"
+              : currentAccess
+              ? currentAccess.direction === "IN"
+                ? "linear-gradient(90deg,#10b981,#22c55e)"
+                : "linear-gradient(90deg,#f97316,#ef4444)"
+              : "linear-gradient(90deg,#0f172a,#1f2937)",
+
+            boxShadow: "0 8px 25px rgba(0,0,0,0.25)",
+
+            "@keyframes scrollText": {
+              "0%": { transform: "translateX(100%)" },
+              "100%": { transform: "translateX(-100%)" }
+            }
+          }}
+        >
+
+        {/* SCROLLING INSTRUCTIONS */}
+        <Box
+          sx={{
+            position: "absolute",
+            bottom: 4,
+            left: 0,
+            width: "100%",
+            overflow: "hidden",
+            whiteSpace: "nowrap"
+          }}
+        >
+          <Typography
+            sx={{
+              display: "inline-block",
+              color: "#f8fafc",
+              fontWeight: 500,
+              fontSize: 14,
+              opacity: 0.9,
+              animation: "scrollText 18s linear infinite"
+            }}
+          >
+            Please scan your RFID card or enter UID • Ensure your face is visible to the camera • Follow gate security instructions • Contact security desk if access is denied
+          </Typography>
+        </Box>
+
+      </Box>
+
       {/* ALERTS */}
       <Box sx={{ position: 'fixed', bottom: 20, right: 20 }}>
         {errorMessage && <Alert severity="error">{errorMessage}</Alert>}
@@ -609,6 +885,8 @@ export default function GateDisplay() {
 
 /* ---------------- STYLES ---------------- */
 const styles = {
+
+
   root: {
     height: '100vh',
     width: '100vw',
@@ -623,21 +901,15 @@ const styles = {
     flexDirection: 'column',
   },
 
-  /* HEADER */
 
-  headerWrap: {
-    width: '100%',
-    maxWidth: '1840px',
-    margin: '0 auto',
-    height: '70px',
-    flexShrink: 0,
-  },
+
 
   banner: {
-    height: '70px',
+    height: '100px',
     borderRadius: 12,
 
-    padding: '0 18px',
+    padding: '10px 18px',
+    marginTop: '10px', 
 
     color: '#fff',
 

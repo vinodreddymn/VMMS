@@ -1,7 +1,29 @@
 import express from "express";
 import * as controller from "../controllers/admin.controller.js";
+import * as mediaController from "../controllers/media.controller.js";
+import multer from "multer";
+import path from "path";
+import fs from "fs";
 
 const router = express.Router();
+
+/* ================= MEDIA STORAGE (UPLOADS) ================= */
+const mediaDir = path.join(process.cwd(), "uploads", "media");
+fs.mkdirSync(mediaDir, { recursive: true });
+
+const mediaStorage = multer.diskStorage({
+  destination: (_req, _file, cb) => cb(null, mediaDir),
+  filename: (_req, file, cb) => {
+    const ext = path.extname(file.originalname) || "";
+    const base = path.basename(file.originalname, ext).replace(/\s+/g, "_");
+    cb(null, `${base}-${Date.now()}${ext}`);
+  },
+});
+
+const uploadMedia = multer({
+  storage: mediaStorage,
+  limits: { fileSize: 50 * 1024 * 1024 }, // 50 MB
+});
 
 /* ================= USERS ================= */
 router.post("/users", controller.createUser);
@@ -54,6 +76,11 @@ router.delete("/rfid-cards-stock/:id", controller.markVisitorRFIDCardStockDamage
 router.get("/rfid-stock", controller.getLabourRFIDStock);
 router.post("/rfid-stock", controller.addLabourRFIDStock);
 router.delete("/rfid-stock/:id", controller.markLabourRFIDStockDamaged);
+
+/* ================= MEDIA LIBRARY ================= */
+router.get("/media", mediaController.listMediaAdmin);
+router.post("/media", uploadMedia.single("file"), mediaController.uploadMedia);
+router.delete("/media/:id", mediaController.deleteMedia);
 
 /* ================= HOST PROJECT ASSIGNMENT ================= */
 router.get("/:id/projects", controller.getHostProjects);

@@ -12,11 +12,12 @@ import {
   getVisitorRFIDCardStock, addVisitorRFIDCardStock, markVisitorRFIDCardStockDamaged,
   getLabourRFIDStock, addLabourRFIDStock, markLabourRFIDStockDamaged
 } from '../api/admin.api'
+import { getAdminMediaFiles, uploadMediaFile, deleteMediaFile } from '../api/media.api'
 
 import {
   Box, Tabs, Tab, Button, Dialog, DialogTitle, DialogContent, DialogActions,
   TextField, Typography, Stack, Switch, FormControlLabel, MenuItem,
-  CircularProgress, Chip
+  CircularProgress, Chip, Paper
 } from '@mui/material'
 
 export default function AdminUsers() {
@@ -187,6 +188,12 @@ const fetchVisitorCardStock = async () => {
 const [labourTokenStock, setLabourTokenStock] = useState([])
 const [labourStockInput, setLabourStockInput] = useState('')
 
+/* ================= MEDIA FILES ================= */
+const [mediaFiles, setMediaFiles] = useState([])
+const [mediaFile, setMediaFile] = useState(null)
+const [mediaLoading, setMediaLoading] = useState(false)
+const [mediaUploading, setMediaUploading] = useState(false)
+
 const fetchLabourTokenStock = async () => {
   setLoading(true)
   try {
@@ -197,6 +204,19 @@ const fetchLabourTokenStock = async () => {
     alert(err?.response?.data?.error || 'Failed to fetch labour token stock')
   } finally {
     setLoading(false)
+  }
+}
+
+const fetchMediaFiles = async () => {
+  setMediaLoading(true)
+  try {
+    const r = await getAdminMediaFiles()
+    setMediaFiles(r.data?.media || r.data?.files || r.data?.data || [])
+  } catch (err) {
+    console.error('Failed to fetch media files', err)
+    alert(err?.response?.data?.error || 'Failed to fetch media files')
+  } finally {
+    setMediaLoading(false)
   }
 }
 
@@ -211,6 +231,7 @@ const fetchLabourTokenStock = async () => {
     if (tab === 6) fetchRoles()
     if (tab === 7) fetchVisitorCardStock()
     if (tab === 8) fetchLabourTokenStock()
+    if (tab === 9) fetchMediaFiles()
   }, [tab])
 
   /* ================= FILTER ================= */
@@ -221,6 +242,19 @@ const fetchLabourTokenStock = async () => {
         String(v ?? '').toLowerCase().includes(search.toLowerCase())
       )
     )
+  }
+
+  const fileBase =
+    import.meta.env.VITE_FILE_BASE_URL ||
+    (import.meta.env.VITE_API_BASE_URL
+      ? import.meta.env.VITE_API_BASE_URL.replace(/\/api\/?$/, '')
+      : '')
+
+  const resolveMediaUrl = (src) => {
+    if (!src) return ''
+    if (/^(https?:)?\/\//i.test(src) || src.startsWith('data:')) return src
+    const base = fileBase?.replace(/\/$/, '')
+    return base ? `${base}/${src.replace(/^\//, '')}` : `/${src.replace(/^\//, '')}`
   }
 
   /* ================= CRUD HANDLERS ================= */
@@ -405,6 +439,34 @@ const fetchLabourTokenStock = async () => {
       .map((v) => v.trim())
       .filter(Boolean)
 
+  const handleUploadMedia = async () => {
+    if (!mediaFile) return alert('Choose an image or video to upload')
+    const formData = new FormData()
+    formData.append('file', mediaFile)
+    setMediaUploading(true)
+    try {
+      await uploadMediaFile(formData)
+      setMediaFile(null)
+      await fetchMediaFiles()
+    } catch (err) {
+      console.error('Failed to upload media', err)
+      alert(err?.response?.data?.error || 'Media upload failed')
+    } finally {
+      setMediaUploading(false)
+    }
+  }
+
+  const handleDeleteMedia = async (file) => {
+    if (!window.confirm(`Delete ${file?.original_name || file?.file_name || 'this file'}?`)) return
+    try {
+      await deleteMediaFile(file.id || file.media_id || file._id)
+      await fetchMediaFiles()
+    } catch (err) {
+      console.error('Failed to delete media', err)
+      alert(err?.response?.data?.error || 'Could not delete media file')
+    }
+  }
+
   const saveVisitorStock = async () => {
     const uids = parseStockInput(visitorStockInput)
     if (!uids.length) return alert('Enter at least one RFID UID')
@@ -476,6 +538,7 @@ const fetchLabourTokenStock = async () => {
         <Tab label="Roles" />
         <Tab label="Visitor RFID Stock" />
         <Tab label="Labour RFID Stock" />
+        <Tab label="Media Library" />
       </Tabs>
 
       <TextField
@@ -853,6 +916,94 @@ const fetchLabourTokenStock = async () => {
             ]}
           />
         </>
+      )}
+
+      {/* MEDIA LIBRARY */}
+      {tab === 9 && (
+        <Stack spacing={2}>
+          <Stack direction={{ xs: 'column', md: 'row' }} spacing={1} alignItems="flex-start">
+            <Button variant="contained" component="label" disabled={mediaUploading}>
+              Choose File
+              <input
+                hidden
+                type="file"
+                accept="image/*,video/*"
+                onChange={(e) => setMediaFile(e.target.files?.[0] || null)}
+              />
+            </Button>
+            {mediaFile && (
+              <Typography sx={{ mt: { xs: 0, md: 1 } }}>
+                {mediaFile.name}
+              </Typography>
+            )}
+            <Button
+              variant="contained"
+              color="success"
+              onClick={handleUploadMedia}
+              disabled={!mediaFile || mediaUploading}
+            >
+              {mediaUploading ? 'Uploading...' : 'Upload Media'}
+            </Button>
+          </Stack>
+
+          {mediaLoading && <CircularProgress size={24} />}
+
+          <Box
+            sx={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))',
+              gap: 2
+            }}
+          >
+            {mediaFiles.map((file) => {
+              const url = resolveMediaUrl(
+                file.url || file.file_url || file.path || file.location || file.src
+              )
+              const mime = file.mime_type || file.content_type || file.type || ''
+              const isVideo = mime.startsWith('video') || /\.(mp4|webm|mov|m4v)$/i.test(url)
+
+              return (
+                <Paper
+                  key={file.id || file.media_id || file._id || url}
+                  sx={{ p: 1.5, display: 'flex', flexDirection: 'column', gap: 1 }}
+                >
+                  {isVideo ? (
+                    <video
+                      src={url}
+                      controls
+                      style={{ width: '100%', borderRadius: 8, maxHeight: 180 }}
+                    />
+                  ) : (
+                    <img
+                      src={url}
+                      alt={file.original_name || file.file_name || 'Media file'}
+                      style={{
+                        width: '100%',
+                        height: 160,
+                        objectFit: 'cover',
+                        borderRadius: 8
+                      }}
+                    />
+                  )}
+                  <Typography variant="body2" fontWeight={600} noWrap>
+                    {file.original_name || file.file_name || file.name || 'Media file'}
+                  </Typography>
+                  <Button
+                    size="small"
+                    color="error"
+                    onClick={() => handleDeleteMedia(file)}
+                  >
+                    Delete
+                  </Button>
+                </Paper>
+              )
+            })}
+          </Box>
+
+          {!mediaLoading && !mediaFiles.length && (
+            <Typography color="text.secondary">No media uploaded yet.</Typography>
+          )}
+        </Stack>
       )}
 
       {/* ===== USER DIALOG ===== */}
