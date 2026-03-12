@@ -316,7 +316,7 @@ export default function AndonDisplay() {
 
       <Grid container spacing={2} sx={{ mt: 2 }}>
 
-        <Grid size={{ xs: 12, md: 6 }}>
+        <Grid size={{ xs: 12, md: 6 }} >
           <VisitorTransactions rows={visitorTx} scrollRef={visitorScrollRef} />
         </Grid>
 

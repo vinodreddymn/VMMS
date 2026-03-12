@@ -39,6 +39,14 @@ export default function LabourDetail() {
               </Grid>
 
               <Grid item xs={12} md={6}>
+                <Typography><b>Gender:</b> {labour.gender || 'N/A'}</Typography>
+              </Grid>
+
+              <Grid item xs={12} md={6}>
+                <Typography><b>Age:</b> {labour.age ?? 'N/A'}</Typography>
+              </Grid>
+
+              <Grid item xs={12} md={6}>
                 <Typography>
                   <b>Aadhaar (Last 4):</b> {labour.aadhaar_last4 || '****'}
                 </Typography>

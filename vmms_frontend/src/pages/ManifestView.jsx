@@ -54,6 +54,8 @@ export default function ManifestView() {
   const labourColumns = [
     { key: 'id', label: 'ID' },
     { key: 'full_name', label: 'Name' },
+    { key: 'gender', label: 'Gender' },
+    { key: 'age', label: 'Age' },
     { key: 'phone', label: 'Phone' },
     { key: 'token_uid', label: 'RFID Token' },
   ]

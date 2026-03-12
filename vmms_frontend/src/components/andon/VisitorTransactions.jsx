@@ -26,7 +26,7 @@ export default function VisitorTransactions({ rows = [], scrollRef }) {
 
         border: "1px solid rgba(59,130,246,0.25)",
 
-        height: "calc(100vh - 360px)",
+        height: "calc(100vh - 290px)",
         display: "flex",
         flexDirection: "column",
 

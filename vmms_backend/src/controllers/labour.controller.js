@@ -225,9 +225,11 @@ Total Labours: ${labours.length}`;
     const columns = {
       sno: startX + 6,
       name: startX + 36,
-      phone: startX + 205,
-      aadhaar: startX + 295,
-      token: startX + 420
+      gender: startX + 180,
+      age: startX + 224,
+      phone: startX + 268,
+      aadhaar: startX + 355,
+      token: startX + 465
     };
 
     let labourIndex = 0;
@@ -251,6 +253,8 @@ Total Labours: ${labours.length}`;
 
       doc.text("S.No", columns.sno, y + 5);
       doc.text("Full Name", columns.name, y + 5);
+      doc.text("Gender", columns.gender, y + 5);
+      doc.text("Age", columns.age, y + 5);
       doc.text("Phone", columns.phone, y + 5);
       doc.text("Aadhaar No", columns.aadhaar, y + 5);
       doc.text("Token UID", columns.token, y + 5);
@@ -284,6 +288,8 @@ Total Labours: ${labours.length}`;
 
         doc.text(String(labourIndex + 1), columns.sno, y + 5);
         doc.text((labour.full_name || "-").substring(0, 32), columns.name, y + 5);
+        doc.text(labour.gender || "-", columns.gender, y + 5);
+        doc.text(labour.age != null ? String(labour.age) : "-", columns.age, y + 5);
         doc.text(labour.phone || "-", columns.phone, y + 5);
         doc.text(aadhaarDisplay, columns.aadhaar, y + 5);
         doc.text(labour.token_uid || "-", columns.token, y + 5);
@@ -352,7 +358,12 @@ const generateAndPersistManifestPdf = async (manifest_id) => {
 
 export const createLabour = async (req, res) => {
   try {
-    const { supervisor_id, full_name, phone, aadhaar, token_uid } = req.body;
+    const { supervisor_id, full_name, phone, aadhaar, token_uid, gender, age } = req.body;
+    const parsedAge =
+      age === undefined || age === null || String(age).trim() === ""
+        ? null
+        : Number(age);
+    const ageValue = Number.isFinite(parsedAge) ? parsedAge : null;
 
     // Validate supervisor permissions first
     const supervisor = await resolveSupervisor(supervisor_id);
@@ -381,7 +392,9 @@ export const createLabour = async (req, res) => {
       supervisor.id,
       full_name,
       phone,
-      aadhaar
+      aadhaar,
+      gender ? String(gender).trim() : null,
+      ageValue
     );
 
     // Assign token to labour (valid only today)

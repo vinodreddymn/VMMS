@@ -5,13 +5,20 @@ import * as encryption from "../utils/encryption.util.js";
 // LABOUR MANAGEMENT
 // =====================================================
 
-export const createLabour = async (supervisor_id, full_name, phone, aadhaar) => {
+export const createLabour = async (
+  supervisor_id,
+  full_name,
+  phone,
+  aadhaar,
+  gender = null,
+  age = null
+) => {
   const aadhaar_encrypted = encryption.encryptAadhaar(aadhaar);
   const aadhaar_last4 = aadhaar.slice(-4);
 
   const query = `
-    INSERT INTO labours (supervisor_id, full_name, phone, aadhaar_encrypted, aadhaar_last4)
-    VALUES ($1, $2, $3, $4, $5)
+    INSERT INTO labours (supervisor_id, full_name, phone, aadhaar_encrypted, aadhaar_last4, gender, age)
+    VALUES ($1, $2, $3, $4, $5, $6, $7)
     RETURNING *;
   `;
 
@@ -21,6 +28,8 @@ export const createLabour = async (supervisor_id, full_name, phone, aadhaar) => 
     phone,
     aadhaar_encrypted,
     aadhaar_last4,
+    gender,
+    age,
   ]);
 
   return result.rows[0];
@@ -221,6 +230,8 @@ export const getManifestLabours = async (manifest_id) => {
       l.phone,
       l.aadhaar_encrypted,
       l.aadhaar_last4,
+      l.gender,
+      l.age,
       l.supervisor_id,
       lt.token_uid,
       lt.assigned_date,

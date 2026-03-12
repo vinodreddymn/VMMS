@@ -26,7 +26,7 @@ export default function LabourTransactions({ rows = [], scrollRef }) {
 
         border: "1px solid rgba(245,158,11,0.25)",
 
-        height: "calc(100vh - 360px)",
+        height: "calc(100vh - 290px)",
         display: "flex",
         flexDirection: "column",
 

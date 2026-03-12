@@ -10,6 +10,7 @@ import {
   Typography,
   Divider,
   Autocomplete,
+  MenuItem,
 } from '@mui/material'
 import visitorApi from '../api/visitor.api'
 import labourApi from '../api/labour.api'
@@ -20,7 +21,7 @@ export default function LabourEnrollmentDialog({ open, onClose, onSaved }) {
   const [supervisor, setSupervisor] = useState(null)
 
   const [labours, setLabours] = useState([
-    { full_name: '', phone: '', aadhaar: '', token_uid: '' },
+    { full_name: '', phone: '', aadhaar: '', token_uid: '', gender: '', age: '' },
   ])
 
   const [loading, setLoading] = useState(false)
@@ -78,7 +79,7 @@ export default function LabourEnrollmentDialog({ open, onClose, onSaved }) {
   }
 
   const addRow = () => {
-    setLabours([...labours, { full_name: '', phone: '', aadhaar: '', token_uid: '' }])
+    setLabours([...labours, { full_name: '', phone: '', aadhaar: '', token_uid: '', gender: '', age: '' }])
   }
 
   const removeRow = (index) => {
@@ -132,6 +133,8 @@ export default function LabourEnrollmentDialog({ open, onClose, onSaved }) {
           full_name: labour.full_name,
           phone: labour.phone,
           aadhaar: labour.aadhaar,
+          gender: labour.gender || null,
+          age: labour.age ? Number(labour.age) : null,
           token_uid: labour.token_uid,
         })
 
@@ -166,7 +169,7 @@ export default function LabourEnrollmentDialog({ open, onClose, onSaved }) {
     setStep(1)
     setSupervisorId('')
     setSupervisor(null)
-    setLabours([{ full_name: '', phone: '', aadhaar: '', token_uid: '' }])
+    setLabours([{ full_name: '', phone: '', aadhaar: '', token_uid: '', gender: '', age: '' }])
     setError(null)
     onClose()
   }
@@ -275,6 +278,28 @@ export default function LabourEnrollmentDialog({ open, onClose, onSaved }) {
                   onChange={(e) => handleLabourChange(index, 'full_name', e.target.value)}
                   fullWidth
                   sx={{ flex: 1 }}
+                />
+                <TextField
+                  select
+                  label="Gender"
+                  value={labour.gender}
+                  onChange={(e) => handleLabourChange(index, 'gender', e.target.value)}
+                  fullWidth
+                  sx={{ flex: 0.6, minWidth: 110 }}
+                >
+                  <MenuItem value="">Select</MenuItem>
+                  <MenuItem value="Male">Male</MenuItem>
+                  <MenuItem value="Female">Female</MenuItem>
+                  <MenuItem value="Other">Other</MenuItem>
+                </TextField>
+                <TextField
+                  label="Age"
+                  type="number"
+                  value={labour.age}
+                  onChange={(e) => handleLabourChange(index, 'age', e.target.value)}
+                  fullWidth
+                  inputProps={{ min: 15, max: 75 }}
+                  sx={{ flex: 0.5, minWidth: 90 }}
                 />
                 <TextField
                   label="Phone"

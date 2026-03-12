@@ -205,6 +205,8 @@ export default function LabourTokenReturn() {
                 <TableRow>
                   <TableCell>Labour ID</TableCell>
                   <TableCell>Name</TableCell>
+                  <TableCell>Gender</TableCell>
+                  <TableCell>Age</TableCell>
                   <TableCell>Phone</TableCell>
                   <TableCell>RFID Token</TableCell>
                   <TableCell>Action</TableCell>
@@ -213,7 +215,7 @@ export default function LabourTokenReturn() {
               <TableBody>
                 {labours.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={5} align="center">
+                    <TableCell colSpan={7} align="center">
                       No labour registrations found for today.
                     </TableCell>
                   </TableRow>
@@ -222,6 +224,8 @@ export default function LabourTokenReturn() {
                     <TableRow key={l.id}>
                       <TableCell>{l.id}</TableCell>
                       <TableCell>{l.full_name}</TableCell>
+                      <TableCell>{l.gender || '-'}</TableCell>
+                      <TableCell>{l.age ?? '-'}</TableCell>
                       <TableCell>{l.phone || '-'}</TableCell>
                       <TableCell>{l.token_uid || '-'}</TableCell>
                       <TableCell>

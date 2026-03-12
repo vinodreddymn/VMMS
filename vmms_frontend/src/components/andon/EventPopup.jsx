@@ -159,10 +159,7 @@ overflow: "hidden"
           </span>
         </Typography>
 
-        <Typography>
-          <span style={labelStyle}>Host:</span>{" "}
-          <span style={valueStyle}>{event.host_name}</span>
-        </Typography>
+
 
         <Typography>
           <span style={labelStyle}>Gate:</span>{" "}

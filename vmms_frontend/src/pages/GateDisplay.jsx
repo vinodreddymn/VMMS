@@ -10,13 +10,24 @@ import {
   Typography,
   Chip,
   Divider,
+  FormControl,
+  InputLabel,
+  MenuItem,
+  Select,
 } from '@mui/material'
 import Grid from '@mui/material/Grid'
 import CameraAltIcon from '@mui/icons-material/CameraAlt'
 import api from '../api/axios'
+import { getMasters } from '../api/master.api'
+
+const LOCAL_GATE_KEY = 'gateDisplay.selectedGateId'
+const STAFF_CODE = import.meta.env.VITE_GATE_SETUP_CODE || 'VMMS-STAFF'
 
 export default function GateDisplay() {
-  const [gateId] = useState(1)
+  const [gates, setGates] = useState([])
+  const [gateId, setGateId] = useState(null)
+  const [gatesLoading, setGatesLoading] = useState(false)
+  const [selectingGate, setSelectingGate] = useState(true)
   const [rfidInput, setRfidInput] = useState('')
   const [loading, setLoading] = useState(false)
   const [errorMessage, setErrorMessage] = useState('')
@@ -31,12 +42,22 @@ export default function GateDisplay() {
   const streamRef = useRef(null)
   const inputRef = useRef(null)
 
-  /* ---------------- CAMERA ---------------- */
+  /* ---------------- CAMERA & GATE INIT ---------------- */
   useEffect(() => {
+    loadGates()
+  }, [])
+
+  useEffect(() => {
+    if (selectingGate || !gateId) return undefined
     initCamera()
     inputRef.current?.focus()
     return () => stopCamera()
-  }, [])
+  }, [selectingGate, gateId])
+
+  useEffect(() => {
+    if (!gateId) return
+    localStorage.setItem(LOCAL_GATE_KEY, String(gateId))
+  }, [gateId])
 
   const initCamera = async () => {
     try {
@@ -60,6 +81,29 @@ export default function GateDisplay() {
 
   const stopCamera = () => {
     streamRef.current?.getTracks().forEach(t => t.stop())
+  }
+
+  /* ---------------- GATE MASTER & LOGS ---------------- */
+  const loadGates = async () => {
+    setGatesLoading(true)
+    try {
+      const res = await getMasters()
+      const masterGates = res.data?.data?.gates || []
+      setGates(masterGates)
+
+      const savedId = Number(localStorage.getItem(LOCAL_GATE_KEY))
+      const fallbackId = masterGates[0]?.id || masterGates[0]?.gate_id || null
+      const defaultGate =
+        masterGates.find((g) => g.id === savedId || g.gate_id === savedId) || null
+      const defaultId = defaultGate?.id ?? defaultGate?.gate_id ?? fallbackId
+      setGateId(defaultId)
+      setSelectingGate(!defaultId)
+    } catch (err) {
+      console.error('Failed to load gates', err)
+      setErrorMessage(err?.response?.data?.error || 'Unable to load gates')
+    } finally {
+      setGatesLoading(false)
+    }
   }
 
   const capturePhoto = () => {
@@ -89,6 +133,37 @@ export default function GateDisplay() {
     setSuccessMessage('')
     setErrorMessage(msg || 'Access Denied')
     resetDisplay()
+  }
+
+  const handleGateChange = (newGateId) => {
+    const normalized = Number(newGateId) || null
+    setGateId(normalized)
+    setCurrentAccess(null)
+    setLivePhoto(null)
+    setRegisteredPhoto(null)
+    setSuccessMessage('')
+    setErrorMessage('')
+  }
+
+  const confirmGateSelection = () => {
+    if (!gateId) {
+      setErrorMessage('Select a gate to start')
+      return
+    }
+    setSelectingGate(false)
+    setSuccessMessage('')
+    setErrorMessage('')
+    localStorage.setItem(LOCAL_GATE_KEY, String(gateId))
+  }
+
+  const requestGateChange = () => {
+    const input = window.prompt('Staff only: enter gate setup code')
+    if (input === null) return
+    if (input === STAFF_CODE) {
+      setSelectingGate(true)
+    } else {
+      alert('Invalid code')
+    }
   }
 
   const displayAccess = (data, photo) => {
@@ -138,6 +213,10 @@ export default function GateDisplay() {
     e.preventDefault()
     const uid = rfidInput.trim()
     if (!uid) return
+    if (!gateId || selectingGate) {
+      setErrorMessage('Select a gate (staff) to start scanning')
+      return
+    }
 
     setLoading(true)
     setErrorMessage('')
@@ -150,7 +229,7 @@ export default function GateDisplay() {
         gate_id: gateId,
         photo,
       })
-      if (v.data?.status === 'SUCCESS') {
+      if ((v.data?.status || '').toUpperCase() === 'SUCCESS') {
         const normalized = normalizeVisitor(v.data, uid)
         displayAccess(normalized, photo)
         setRfidInput('')
@@ -162,7 +241,7 @@ export default function GateDisplay() {
         gate_id: gateId,
         photo,
       })
-      if (l.data?.status === 'SUCCESS') {
+      if ((l.data?.status || '').toUpperCase() === 'SUCCESS') {
         const normalized = normalizeLabour(l.data, uid)
         displayAccess(normalized, photo)
         setRfidInput('')
@@ -196,7 +275,67 @@ export default function GateDisplay() {
     return `${fileBase}/${p}`
   }
 
+  const currentGate = gates.find((g) => g.id === gateId || g.gate_id === gateId)
+
+  const formatDateTime = (value) => {
+    if (!value) return '-'
+    const d = new Date(value)
+    if (Number.isNaN(d.getTime())) return '-'
+    return d.toLocaleString()
+  }
+
   /* ---------------- RENDER ---------------- */
+  const renderGateSelector = () => (
+    <Box
+      sx={{
+        minHeight: '100vh',
+        color: '#0f172a',
+        background:
+          'radial-gradient(1200px 600px at 10% 0%, rgba(16,185,129,0.12), transparent 60%), radial-gradient(900px 500px at 90% 0%, rgba(244,114,182,0.12), transparent 55%), linear-gradient(180deg, #f8fafc 0%, #eef2f7 60%, #e5e7eb 100%)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        px: 2,
+      }}
+    >
+      <Paper sx={{ p: 4, maxWidth: 480, width: '100%', borderRadius: 3, boxShadow: '0 18px 48px rgba(15,23,42,0.18)' }}>
+        <Typography variant="h5" fontWeight={800} gutterBottom>
+          Staff: Select Gate
+        </Typography>
+        <Typography color="text.secondary" sx={{ mb: 2 }}>
+          Choose the active gate to start the display. Visitors cannot change this setting.
+        </Typography>
+        <FormControl fullWidth>
+          <InputLabel>Select Gate</InputLabel>
+          <Select
+            label="Select Gate"
+            value={gateId || ''}
+            onChange={(e) => handleGateChange(e.target.value)}
+            disabled={gatesLoading || gates.length === 0}
+          >
+            {gates.map((g) => {
+              const value = g.id ?? g.gate_id
+              return (
+                <MenuItem key={value} value={value}>
+                  {g.gate_name} {g.ip_address ? `• ${g.ip_address}` : ''}
+                </MenuItem>
+              )
+            })}
+          </Select>
+        </FormControl>
+        <Stack direction="row" spacing={2} sx={{ mt: 3 }} justifyContent="flex-end">
+          <Button variant="contained" onClick={confirmGateSelection} disabled={!gateId}>
+            Start Display
+          </Button>
+        </Stack>
+      </Paper>
+    </Box>
+  )
+
+  if (selectingGate || !gateId) {
+    return renderGateSelector()
+  }
+
   return (
     <Box
       sx={{
@@ -236,8 +375,23 @@ export default function GateDisplay() {
             : 'READY FOR RFID'}
         </Typography>
         <Typography variant="body1" sx={{ opacity: 0.95 }}>
-          {successMessage || errorMessage || 'Tap RFID card or enter UID'}
+          {successMessage ||
+            errorMessage ||
+            (currentGate ? `Tap RFID card or enter UID at ${currentGate.gate_name}` : 'Select a gate to begin')}
         </Typography>
+        <Box sx={{ mt: 1, display: 'flex', justifyContent: 'center', gap: 1 }}>
+          {currentGate && (
+            <Chip
+              label={`Gate: ${currentGate.gate_name}`}
+              color="info"
+              variant="outlined"
+              size="small"
+            />
+          )}
+            <Button variant="text" size="small" color="inherit" onClick={requestGateChange} sx={{ opacity: 0.8, textDecoration: 'underline' }}>
+              Change gate (staff)
+            </Button>
+        </Box>
       </Box>
 
       <Box sx={{ px: { xs: 2, md: 3 }, py: { xs: 2, md: 3 } }}>
@@ -255,8 +409,24 @@ export default function GateDisplay() {
               }}
             >
               <Typography variant="overline" sx={{ color: '#0ea5e9', fontWeight: 700, letterSpacing: 2 }}>
-                GATE {gateId}
+                Gate Console
               </Typography>
+
+              {currentGate ? (
+                <Stack direction="row" spacing={1} sx={{ flexWrap: 'wrap', mb: 2 }}>
+                  <Chip label={currentGate.gate_name} color="primary" />
+                  <Chip label={currentGate.ip_address || 'No IP'} />
+                  <Chip label={currentGate.device_serial || 'No Device'} />
+                  <Chip
+                    label={currentGate.is_active ? 'Active' : 'Inactive'}
+                    color={currentGate.is_active ? 'success' : 'default'}
+                  />
+                </Stack>
+              ) : (
+                <Alert severity="info" sx={{ mb: 2 }}>
+                  {gatesLoading ? 'Loading gates…' : 'No gates found. Please add a gate in Admin > Gates.'}
+                </Alert>
+              )}
               {!currentAccess && (
                 <>
                   <Typography variant="h5" fontWeight={800} gutterBottom>
@@ -282,9 +452,10 @@ export default function GateDisplay() {
                     onChange={(e) => setRfidInput(e.target.value)}
                     fullWidth
                     autoFocus
+                    disabled={selectingGate}
                     sx={{ bgcolor: '#f8fafc', borderRadius: 1 }}
                   />
-                  <Button variant="contained" type="submit" disabled={loading}>
+                  <Button variant="contained" type="submit" disabled={loading || selectingGate || !gateId}>
                     {loading ? <CircularProgress size={22} /> : 'Verify Access'}
                   </Button>
                   <Chip
@@ -415,6 +586,7 @@ export default function GateDisplay() {
             </Paper>
           </Grid>
         </Grid>
+
       </Box>
       {/* ALERTS */}
       <Box sx={{ position: 'fixed', bottom: 20, right: 20 }}>
