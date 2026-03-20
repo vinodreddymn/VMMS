@@ -1,0 +1,23 @@
+{
+  "entries": [
+    {
+      "id": 1,
+      "visitor_name": "John Smith",
+      "visitor_id": "V001",
+      "company": "ABC Ltd",
+      "rfid_uid": "RFID12345",
+      "registered_photo": "/photos/john.jpg",
+      "updated_at": "2026-03-13T12:15:19.966Z"
+    },
+    {
+      "id": 2,
+      "visitor_name": "Jane Doe",
+      "visitor_id": "V002",
+      "company": "XYZ Corp",
+      "rfid_uid": "RFID67890",
+      "registered_photo": "/photos/jane.jpg",
+      "updated_at": "2026-03-13T12:45:19.967Z"
+    }
+  ],
+  "lastSync": "2026-03-13T13:15:54.376Z"
+}

@@ -578,12 +578,7 @@ export const getLabourAnalytics = async (req, res) => {
         const returned_tokens = labours.filter(l => l.token_returned).length;
         
         return {
-          id: manifest.id,
-          supervisor_id: manifest.supervisor_id,
-          manifest_date: manifest.manifest_date,
-          supervisor_name: manifest.supervisor_name,
-          company_name: manifest.company_name,
-          phone: manifest.phone,
+          ...manifest,
           ...withManifestNumber(manifest),
           total_labours: labours.length,
           checked_in,

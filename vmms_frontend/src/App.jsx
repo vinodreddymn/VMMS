@@ -9,7 +9,6 @@ import useAuthStore from "./store/auth.store"
 
 import Login from "./pages/Login"
 import Dashboard from "./pages/Dashboard"
-import AdminDashboard from "./pages/AdminDashboard"
 import Analytics from "./pages/Analytics"
 import Profile from "./pages/Profile"
 import VisitorTransactions from "./pages/VisitorTransactions"
@@ -51,7 +50,6 @@ import ManualGateEntry from "./pages/ManualGateEntry"
 /* ================= REPORTS ================= */
 
 import Reports from "./pages/Reports"
-import LiveMuster from "./pages/LiveMuster"
 
 /* ================= ADMIN / UTILITIES ================= */
 
@@ -116,12 +114,6 @@ export default function App() {
         <Route path="analytics" element={<Analytics />} />
         <Route path="transactions/visitors" element={<VisitorTransactions />} />
         <Route path="transactions/labours" element={<LabourTransactions />} />
-
-        {/* ================= ADMIN DASHBOARD ================= */}
-
-        {isSuperAdmin && (
-          <Route path="admin-dashboard" element={<AdminDashboard />} />
-        )}
 
         {/* ================================================= */}
         {/* VISITORS MODULE */}
@@ -200,7 +192,6 @@ export default function App() {
 
         <Route path="reports" element={<Reports />} />
 
-        <Route path="reports/live-muster" element={<LiveMuster />} />
 
         {/* ================================================= */}
         {/* SUPER ADMIN MODULE */}

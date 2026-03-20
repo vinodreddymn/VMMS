@@ -105,9 +105,8 @@ export const getGateStats = async (from_date, to_date) => {
     SELECT
       g.id, g.gate_name, e.entrance_name,
       COUNT(*) as total_scans,
-      COUNT(DISTINCT CASE WHEN direction='IN' THEN person_id END) as entries,
-      COUNT(DISTINCT CASE WHEN direction='OUT' THEN person_id END) as exits,
-      COUNT(DISTINCT CASE WHEN status='FAILED' THEN al.id END) as failed_scans
+      COUNT(*) FILTER (WHERE direction='IN') as entries,
+      COUNT(*) FILTER (WHERE direction='OUT') as exits
     FROM access_logs al
     JOIN gates g ON al.gate_id = g.id
     LEFT JOIN entrances e ON g.entrance_id = e.id
@@ -618,6 +617,7 @@ export const getAccessTransactions = async (filters = {}) => {
           l.phone,
           l.aadhaar_last4,
           sup.full_name AS supervisor_name,
+          sup.company_name AS company_name,
           p.project_name,
           d.department_name,
           ent.entry_time,
@@ -640,6 +640,7 @@ export const getAccessTransactions = async (filters = {}) => {
           v.full_name,
           v.pass_no,
           v.primary_phone,
+          v.company_name,
           v.aadhaar_last4,
           p.project_name,
           d.department_name,

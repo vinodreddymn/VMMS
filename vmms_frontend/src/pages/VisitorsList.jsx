@@ -27,6 +27,12 @@ import RefreshIcon from '@mui/icons-material/Refresh'
 import AddIcon from '@mui/icons-material/Add'
 import WarningAmberIcon from '@mui/icons-material/WarningAmber'
 import SecurityIcon from '@mui/icons-material/Security'
+import PeopleAltIcon from '@mui/icons-material/PeopleAlt'
+import EventAvailableIcon from '@mui/icons-material/EventAvailable'
+import EventBusyIcon from '@mui/icons-material/EventBusy'
+import HourglassBottomIcon from '@mui/icons-material/HourglassBottom'
+import LockPersonIcon from '@mui/icons-material/LockPerson'
+import PersonOffIcon from '@mui/icons-material/PersonOff'
 
 export default function VisitorsList() {
   const user = useAuthStore((s) => s.user)
@@ -40,8 +46,9 @@ export default function VisitorsList() {
   const [searchInput, setSearchInput] = useState('')
   const [visitorTypes, setVisitorTypes] = useState([])
   const [selectedType, setSelectedType] = useState('ALL')
+  const [statusFilter, setStatusFilter] = useState('ALL')
   const [page, setPage] = useState(1)
-  const [limit] = useState(25)
+  const [limit] = useState(25) // client-side pagination
   const [total, setTotal] = useState(0)
   const [typeCounts, setTypeCounts] = useState([])
   const [stats, setStats] = useState({
@@ -56,11 +63,18 @@ export default function VisitorsList() {
     message: '',
   })
 
+  const handleRefresh = () => {
+    setSearchInput('')
+    setQuery('')
+    setSelectedType('ALL')
+    setStatusFilter('ALL')
+    setPage(1)
+  }
+
   /* ---------------- FETCH VISITORS ---------------- */
   const fetchVisitors = useCallback(() => {
     setLoading(true)
-    const params = { q: query, page, limit }
-    if (selectedType !== 'ALL') params.type = selectedType
+    const params = { q: query, limit: 1000 } // fetch a large batch once; filter client-side
     listVisitors(params)
       .then((res) => {
         const data = res.data
@@ -90,7 +104,7 @@ export default function VisitorsList() {
         })
       })
       .finally(() => setLoading(false))
-  }, [query, page, limit, selectedType])
+  }, [query])
 
   useEffect(() => {
     fetchVisitors()
@@ -148,18 +162,44 @@ export default function VisitorsList() {
     return map
   }, [typeCounts])
 
+  const matchesStatusFilter = (v) => {
+    const status = v.status || deriveStatus(v)
+    const expiringSoon = isExpiringSoon(v.valid_to)
+    switch (statusFilter) {
+      case 'ACTIVE':
+        return status === 'ACTIVE' && !expiringSoon
+      case 'EXPIRING':
+        return status === 'ACTIVE' && expiringSoon
+      case 'EXPIRED':
+        return status === 'EXPIRED'
+      case 'INACTIVE':
+        return status === 'INACTIVE'
+      case 'SOFT_LOCK':
+        return status === 'SOFT_LOCK'
+      default:
+        return true
+    }
+  }
+
   /* ---------------- PROCESS DATA & FILTER BY TYPE ---------------- */
-  const processedVisitors = useMemo(() => {
+  const filteredVisitors = useMemo(() => {
     return visitors
       .filter((v) => {
         if (selectedType === 'ALL') return true
         return (v.visitor_type_name || v.type_name) === selectedType
       })
+      .filter((v) => matchesStatusFilter(v))
+  }, [visitors, selectedType, statusFilter])
+
+  const processedVisitors = useMemo(() => {
+    const start = (page - 1) * limit
+    return filteredVisitors
+      .slice(start, start + limit)
       .map((v, index) => {
         const status = v.status || deriveStatus(v)
         return {
           id: v.id,
-          serial_no: (page - 1) * limit + index + 1,
+          serial_no: start + index + 1,
           pass_no: v.pass_no || v.visitor_pass_no || '-',
           full_name: `${v.first_name || ''} ${v.last_name || ''}`.trim(),
           type: v.visitor_type_name || v.type_name || '-',
@@ -169,7 +209,7 @@ export default function VisitorsList() {
           status,
         }
       })
-  }, [visitors, selectedType, page, limit])
+  }, [filteredVisitors, page, limit])
 
   /* ---------------- GET TYPE COUNT ---------------- */
   const getTypeCount = (type) => {
@@ -177,7 +217,15 @@ export default function VisitorsList() {
     return typeCountMap.get(type) || 0
   }
 
-  const totalPages = Math.max(1, Math.ceil((total || 0) / limit) || 1)
+  const totalPages = Math.max(1, Math.ceil((filteredVisitors.length || 0) / limit) || 1)
+  const summaryCards = [
+    { key: 'total', label: 'Total Visitors', value: stats.total || 0, color: '#0ea5e9', icon: PeopleAltIcon },
+    { key: 'active', label: 'Active', value: stats.active || 0, color: '#22c55e', icon: EventAvailableIcon },
+    { key: 'expiring', label: 'Expiring Soon', value: stats.expiring || 0, color: '#f59e0b', icon: HourglassBottomIcon },
+    { key: 'expired', label: 'Expired', value: stats.expired || 0, color: '#ef4444', icon: EventBusyIcon },
+    { key: 'inactive', label: 'Inactive', value: stats.inactive || 0, color: '#94a3b8', icon: PersonOffIcon },
+    { key: 'soft_lock', label: 'Soft Locked', value: stats.soft_lock || 0, color: '#f97316', icon: LockPersonIcon },
+  ]
 
   const actions = useMemo(() => {
     const base = [
@@ -232,12 +280,69 @@ export default function VisitorsList() {
 
   /* ---------------- RENDER ---------------- */
   return (
-    <Container maxWidth="xxl">
+    <Container maxWidth="xxl" sx={{ py: 2 }}>
+
+      <Paper
+        sx={{
+          p: 3,
+          mb: 2,
+          borderRadius: 3,
+          background: 'linear-gradient(135deg, #0f172a, #1e293b)',
+          color: '#e2e8f0',
+          boxShadow: '0 20px 40px rgba(15,23,42,0.28)'
+        }}
+      >
+        <Box display="flex" alignItems="center" justifyContent="space-between" flexWrap="wrap" gap={2}>
+          <Box>
+            <Typography variant="h5" fontWeight={700} color="inherit">Visitors</Typography>
+            <Typography variant="body2" color="#cbd5e1">
+              Track, filter, and manage all visitor passes in one place.
+            </Typography>
+          </Box>
+          <Box display="flex" gap={1}>
+            <Button
+              variant="outlined"
+              startIcon={<RefreshIcon />}
+              onClick={handleRefresh}
+              sx={{
+                color: '#e2e8f0',
+                borderColor: 'rgba(255,255,255,0.3)',
+                '&:hover': { borderColor: '#e2e8f0', backgroundColor: 'rgba(255,255,255,0.06)' }
+              }}
+            >
+              Refresh
+            </Button>
+            <Tooltip
+              title={
+                allowCreate
+                  ? "Register new visitor"
+                  : "Only ENROLLMENT_STAFF_VISITORS can register"
+              }
+            >
+              <span>
+                <Button
+                  variant="contained"
+                  startIcon={<AddIcon />}
+                  onClick={() => navigate("/visitors/new")}
+                  disabled={!allowCreate}
+                  sx={{
+                    bgcolor: "#38bdf8",
+                    color: "#0f172a",
+                    '&:hover': { bgcolor: "#7dd3fc" }
+                  }}
+                >
+                  Register
+                </Button>
+              </span>
+            </Tooltip>
+          </Box>
+        </Box>
+      </Paper>
 
       {/* SEARCH and New Registration*/}
       <Paper
         sx={{
-          p: 1,
+          p: 2,
           mb: 2,
           borderRadius: 2,
           border: "1px solid #e2e8f0"
@@ -261,41 +366,91 @@ export default function VisitorsList() {
             />
           </Box>
 
-          {/* Register Button */}
-          <Tooltip
-            title={
-              allowCreate
-                ? "Register new visitor"
-                : "Only ENROLLMENT_STAFF_VISITORS can register"
-            }
-          >
-            <span>
-              <Button
-                variant="contained"
-                startIcon={<AddIcon />}
-                onClick={() => navigate("/visitors/new")}
-                disabled={!allowCreate}
-                sx={{
-                  bgcolor: "#38bdf8",
-                  color: "#0f172a",
-                  height: 40,
-                  "&:hover": { bgcolor: "#7dd3fc" }
-                }}
-              >
-                Register
-              </Button>
-            </span>
-          </Tooltip>
+          {/* Quick actions */}
+          <Box sx={{ display: 'flex', gap: 1 }}>
+            <Button
+              variant="outlined"
+              startIcon={<RefreshIcon />}
+              onClick={handleRefresh}
+              sx={{ height: 40, borderColor: '#cbd5e1', color: '#334155' }}
+            >
+              Reset
+            </Button>
+          </Box>
         </Box>
       </Paper>
 
-      <Box sx={{ display: 'flex', gap: 1.5, flexWrap: 'wrap', mb: 2 }}>
-        <Chip label={`Total: ${stats.total || 0}`} sx={{ fontWeight: 600 }} />
-        <Chip label={`Active: ${stats.active || 0}`} color="success" sx={{ fontWeight: 600 }} />
-        <Chip label={`Expiring Soon: ${stats.expiring || 0}`} color="warning" sx={{ fontWeight: 600 }} />
-        <Chip label={`Expired: ${stats.expired || 0}`} color="error" sx={{ fontWeight: 600 }} />
-        <Chip label={`Inactive: ${stats.inactive || 0}`} sx={{ fontWeight: 600 }} />
-        <Chip label={`Soft Locked: ${stats.soft_lock || 0}`} color="error" sx={{ fontWeight: 600 }} />
+      <Box
+        sx={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+          gap: 1.5,
+          mb: 2
+        }}
+      >
+        {summaryCards.map((card) => {
+          const Icon = card.icon
+          return (
+            <Paper
+              key={card.key}
+              sx={{
+                p: 2,
+                borderRadius: 2,
+                border: '1px solid #e2e8f0',
+                boxShadow: '0 10px 30px rgba(15,23,42,0.05)',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 1.2
+              }}
+            >
+              <Box
+                sx={{
+                  width: 42,
+                  height: 42,
+                  borderRadius: '12px',
+                  backgroundColor: `${card.color}1A`,
+                  display: 'grid',
+                  placeItems: 'center',
+                  color: card.color
+                }}
+              >
+                <Icon />
+              </Box>
+              <Box>
+                <Typography variant="body2" color="text.secondary" fontWeight={600}>{card.label}</Typography>
+                <Typography variant="h6" fontWeight={800}>{card.value}</Typography>
+              </Box>
+            </Paper>
+          )
+        })}
+      </Box>
+
+      <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', mb: 2 }}>
+        {[
+          { key: 'ALL', label: 'All', count: stats.total, color: 'primary' },
+          { key: 'ACTIVE', label: 'Active', count: stats.active, color: 'success' },
+          { key: 'EXPIRING', label: 'Expiring Soon', count: stats.expiring, color: 'warning' },
+          { key: 'EXPIRED', label: 'Expired', count: stats.expired, color: 'error' },
+          { key: 'INACTIVE', label: 'Inactive', count: stats.inactive, color: 'default' },
+          { key: 'SOFT_LOCK', label: 'Soft Locked', count: stats.soft_lock, color: 'error' },
+        ].map((item) => (
+          <Chip
+            key={item.key}
+            label={`${item.label}: ${item.count ?? 0}`}
+            color={item.color}
+            variant={statusFilter === item.key ? 'filled' : 'outlined'}
+            onClick={() => {
+              setStatusFilter(item.key)
+              setPage(1)
+            }}
+            sx={{
+              fontWeight: 700,
+              cursor: 'pointer',
+              borderWidth: statusFilter === item.key ? 0 : 1.5,
+              borderColor: '#e2e8f0'
+            }}
+          />
+        ))}
       </Box>
 
       {/* TABS */}
@@ -362,6 +517,7 @@ export default function VisitorsList() {
             stickyHeader={true}
             maxHeight={600}
             actions={actions}
+            pagination={false}
           />
           <Box sx={{ p: 1.5, display: 'flex', justifyContent: 'flex-end' }}>
             <Pagination page={page} totalPages={totalPages} onChange={setPage} />

@@ -1,11 +1,21 @@
 import db from "../config/db.js";
 import logger from "../utils/logger.util.js";
+import { exec } from "child_process";
+import util from "util";
+
+const execAsync = util.promisify(exec);
+
+const {
+  SMS_PROVIDER = "gammu",
+  GAMMU_BINARY = "gammu-smsd-inject",
+  GAMMU_DEVICE = "",
+} = process.env;
 
 // SMS Service - Handles all SMS communications
 class SMSService {
   constructor() {
-    // Integrate with your SMS provider (Twilio, AWS SNS, etc.)
-    this.provider = process.env.SMS_PROVIDER || "console"; // Default to console logging
+    // Supported providers: gammu | twilio | aws | console
+    this.provider = SMS_PROVIDER.toLowerCase();
   }
 
   async sendSMS(phone, message, eventType, related_entity_id = null) {
@@ -20,6 +30,8 @@ class SMSService {
         // Example: AWS SNS integration
         // const response = await snsClient.publish({...});
         // status = "SENT";
+      } else if (this.provider === "gammu") {
+        status = await this.sendViaGammu(phone, message) ? "SENT" : "FAILED";
       } else {
         // Console logging for development
         logger.info(`SMS to ${phone}: ${message}`);
@@ -45,6 +57,29 @@ class SMSService {
     }
   }
 
+  async sendViaGammu(phone, message) {
+    // gammu-smsd-inject TEXT <phone> -text "message"
+    const sanitizedPhone = String(phone || "").trim();
+    if (!sanitizedPhone) {
+      logger.warn("Gammu SMS aborted: missing phone number");
+      return false;
+    }
+
+    const cmd = `${GAMMU_BINARY} TEXT "${sanitizedPhone}" -text "${message.replace(/"/g, '\\"')}"${
+      GAMMU_DEVICE ? ` -device "${GAMMU_DEVICE}"` : ""
+    }`;
+
+    try {
+      const { stdout, stderr } = await execAsync(cmd);
+      if (stdout) logger.info(`Gammu SMS stdout: ${stdout.trim()}`);
+      if (stderr) logger.warn(`Gammu SMS stderr: ${stderr.trim()}`);
+      return true;
+    } catch (error) {
+      logger.error("Gammu SMS failed:", error);
+      return false;
+    }
+  }
+
   async sendLabourRegistrationSMS(host_phone, supervisor_name, labour_count) {
     const message = `Labour manifest registered: ${supervisor_name} with ${labour_count} workers for the day.`;
     return this.sendSMS(host_phone, message, "LABOUR_REGISTRATION");
@@ -55,10 +90,7 @@ class SMSService {
     return this.sendSMS(host_phone, message, "NO_SHOW_ALERT");
   }
 
-  async sendMaterialBalanceAlertSMS(host_phone, visitor_name, material_details) {
-    const message = `Material Alert: Visitor ${visitor_name} exited with pending returnable items. ${material_details}`;
-    return this.sendSMS(host_phone, message, "MATERIAL_BALANCE_ALERT");
-  }
+
 
   async sendBlacklistAlertSMS(security_head_phone, person_name, reason) {
     const message = `SECURITY ALERT: Blacklisted person ${person_name} attempted entry. Reason: ${reason}`;

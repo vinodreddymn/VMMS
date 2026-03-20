@@ -1,9 +1,39 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useMemo, useState, useCallback } from 'react'
 import { useParams } from 'react-router-dom'
 import labourApi from '../api/labour.api'
-import { Box, Typography, Paper, Button, Divider, CircularProgress, Alert, Stack } from '@mui/material'
+
+import {
+  Box,
+  Typography,
+  Paper,
+  Button,
+  Divider,
+  CircularProgress,
+  Alert,
+  Stack,
+  Chip
+} from '@mui/material'
+
+import DownloadIcon from '@mui/icons-material/Download'
+import RefreshIcon from '@mui/icons-material/Refresh'
+
 import DataTable from '../components/common/DataTable'
 
+// ===============================
+// Helpers
+// ===============================
+const formatDate = (date) => {
+  if (!date) return '-'
+  return new Date(date).toLocaleDateString('en-IN', {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric'
+  })
+}
+
+// ===============================
+// Component
+// ===============================
 export default function ManifestView() {
   const { id } = useParams()
 
@@ -12,10 +42,8 @@ export default function ManifestView() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
 
-  // ===============================
-  // Fetch Manifest Details
-  // ===============================
-  const fetchManifest = async () => {
+  // Fetch
+  const fetchManifest = useCallback(async () => {
     try {
       setLoading(true)
       setError(null)
@@ -23,46 +51,71 @@ export default function ManifestView() {
       const res = await labourApi.getManifest(id)
       const payload = res?.data || {}
 
-      setManifest(payload.manifest)
+      setManifest(payload.manifest || null)
       setLabours(payload.labours || [])
     } catch (err) {
       console.error(err)
-      setError('Failed to load manifest')
+      setError('Unable to load manifest. Please try again.')
     } finally {
       setLoading(false)
     }
-  }
+  }, [id])
 
   useEffect(() => {
     if (id) fetchManifest()
-  }, [id])
+  }, [id, fetchManifest])
 
-  // ===============================
-  // Download PDF
-  // ===============================
+  // Download
   const handleDownloadPdf = async () => {
     try {
       const res = await labourApi.getManifestPdf(id)
-      const url = window.URL.createObjectURL(new Blob([res.data]))
-      window.open(url)
+      const blob = new Blob([res.data], { type: 'application/pdf' })
+      const url = window.URL.createObjectURL(blob)
+
+      const link = document.createElement('a')
+      link.href = url
+      link.download = `manifest-${manifest?.id || id}.pdf`
+      link.click()
+
+      window.URL.revokeObjectURL(url)
     } catch (err) {
       console.error(err)
-      setError('Failed to download PDF')
+      setError('Failed to download PDF.')
     }
   }
 
-  const labourColumns = [
-    { key: 'id', label: 'ID' },
+  // Table Data
+  const tableData = useMemo(
+    () =>
+      labours.map((labour, index) => ({
+        ...labour,
+        serial: index + 1
+      })),
+    [labours]
+  )
+
+  const columns = [
+    { key: 'serial', label: '#', width: 60, align: 'center' },
     { key: 'full_name', label: 'Name' },
-    { key: 'gender', label: 'Gender' },
-    { key: 'age', label: 'Age' },
+    { key: 'gender', label: 'Gender', width: 90 },
+    { key: 'age', label: 'Age', width: 70, align: 'center' },
+    {
+      key: 'aadhaar',
+      label: 'Aadhaar',
+      render: (_, row) =>
+        row.aadhaar ||
+        row.aadhaar_number ||
+        row.aadhaar_last4 ||
+        '-'
+    },
     { key: 'phone', label: 'Phone' },
-    { key: 'token_uid', label: 'RFID Token' },
+    { key: 'token_uid', label: 'RFID Token' }
   ]
 
+  // States
   if (loading) {
     return (
-      <Box p={3} textAlign="center">
+      <Box height="60vh" display="flex" alignItems="center" justifyContent="center">
         <CircularProgress />
       </Box>
     )
@@ -71,7 +124,16 @@ export default function ManifestView() {
   if (error) {
     return (
       <Box p={3}>
-        <Alert severity="error">{error}</Alert>
+        <Alert
+          severity="error"
+          action={
+            <Button onClick={fetchManifest} startIcon={<RefreshIcon />}>
+              Retry
+            </Button>
+          }
+        >
+          {error}
+        </Alert>
       </Box>
     )
   }
@@ -79,45 +141,95 @@ export default function ManifestView() {
   if (!manifest) {
     return (
       <Box p={3}>
-        <Typography>No manifest found.</Typography>
+        <Alert severity="warning">No manifest data available.</Alert>
       </Box>
     )
   }
 
   return (
-    <Box p={3}>
-      {/* Header */}
-      <Typography variant="h5" fontWeight="bold" mb={2}>
-        Labour Manifest #{manifest.id}
-      </Typography>
+    <Box
+      sx={{
+        p: 3,
+        minHeight: '100vh',
+        background: 'linear-gradient(135deg, #f1f5f9, #eef2ff)'
+      }}
+    >
+      {/* HEADER */}
+      <Paper
+        sx={{
+          p: 3,
+          mb: 3,
+          borderRadius: 3,
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center'
+        }}
+      >
+        <Box>
+          <Typography variant="h5" fontWeight="bold">
+            Labour Manifest #{manifest.id}
+          </Typography>
+          <Typography variant="body2" color="text.secondary">
+            {formatDate(manifest.manifest_date)}
+          </Typography>
+        </Box>
 
-      {/* Supervisor Details */}
-      <Paper sx={{ p: 2, mb: 3 }}>
-        <Typography variant="h6" gutterBottom>
-          Supervisor Details
-        </Typography>
-        <Typography><b>Name:</b> {manifest.supervisor_name}</Typography>
-        <Typography><b>Company:</b> {manifest.company_name || '-'}</Typography>
-        <Typography><b>Project:</b> {manifest.project_name || '-'}</Typography>
-        <Typography><b>Phone:</b> {manifest.primary_phone || '-'}</Typography>
-        <Typography><b>Date:</b> {manifest.manifest_date}</Typography>
+        <Chip label={`${labours.length} Labours`} color="primary" />
       </Paper>
 
-      {/* Labour List */}
-      <Typography variant="h6" mb={2}>
-        Registered Labours
-      </Typography>
+      {/* SUPERVISOR DETAILS - VERTICAL */}
+      <Paper sx={{ p: 3, mb: 3, borderRadius: 3 }}>
+        <Typography variant="h6" mb={2}>
+          Supervisor & Project Details
+        </Typography>
 
-      <DataTable columns={labourColumns} data={labours} />
+        <Stack spacing={2}>
+          <Box>
+            <Typography fontSize={12} color="text.secondary">Supervisor</Typography>
+            <Typography fontWeight={600}>{manifest.supervisor_name || '-'}</Typography>
+          </Box>
 
-      <Divider sx={{ my: 3 }} />
+          <Box>
+            <Typography fontSize={12} color="text.secondary">Company</Typography>
+            <Typography fontWeight={600}>{manifest.company_name || '-'}</Typography>
+          </Box>
 
-      {/* Actions */}
-      <Stack direction="row" spacing={2}>
-        <Button variant="contained" onClick={handleDownloadPdf}>
-          Download PDF
-        </Button>
-      </Stack>
+          <Box>
+            <Typography fontSize={12} color="text.secondary">Project</Typography>
+            <Typography fontWeight={600}>{manifest.project_name || '-'}</Typography>
+          </Box>
+
+          <Box>
+            <Typography fontSize={12} color="text.secondary">Primary Phone</Typography>
+            <Typography fontWeight={600}>{manifest.primary_phone || '-'}</Typography>
+          </Box>
+
+          <Box>
+            <Typography fontSize={12} color="text.secondary">Date</Typography>
+            <Typography fontWeight={600}>{formatDate(manifest.manifest_date)}</Typography>
+          </Box>
+        </Stack>
+      </Paper>
+
+      {/* TABLE */}
+      <Paper sx={{ p: 3, borderRadius: 3 }}>
+        <Stack direction="row" justifyContent="space-between" mb={2}>
+          <Typography variant="h6">Registered Labours</Typography>
+
+          {/* SINGLE DOWNLOAD BUTTON */}
+          <Button
+            variant="contained"
+            startIcon={<DownloadIcon />}
+            onClick={handleDownloadPdf}
+          >
+            Download PDF
+          </Button>
+        </Stack>
+
+        <DataTable columns={columns} data={tableData} />
+      </Paper>
+
+      <Divider sx={{ my: 4 }} />
     </Box>
   )
 }

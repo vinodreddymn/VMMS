@@ -1,0 +1,8 @@
+{
+  "gate_id": 2,
+  "gate_name": "Side Gate",
+  "server_url": "http://127.0.0.1:3000",
+  "display_ws": "ws://127.0.0.1:3000/display",
+  "virtual_ip": "127.0.0.3"
+}
+

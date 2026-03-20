@@ -303,9 +303,12 @@ export const getManifestsByDate = async (date) => {
       lm.manifest_date,
       v.full_name as supervisor_name,
       v.company_name,
-      v.primary_phone as phone
+      v.primary_phone as phone,
+      p.project_name AS project_name,
+      p.id AS project_id
     FROM labour_manifests lm
     LEFT JOIN visitors v ON lm.supervisor_id = v.id
+    LEFT JOIN projects p ON v.project_id = p.id
     WHERE lm.manifest_date = $1
     ORDER BY lm.id DESC
   `;

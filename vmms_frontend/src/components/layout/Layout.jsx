@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from "react"
-import { Outlet } from "react-router-dom"
+import { Outlet, useNavigate } from "react-router-dom"
 import Header from "./Header"
 import Sidebar from "./Sidebar"
 import Box from "@mui/material/Box"
@@ -9,14 +9,17 @@ import useAuthStore from "../../store/auth.store"
 export default function Layout() {
 
 const [sidebarOpen, setSidebarOpen] = useState(true)
-const [hideHeader, setHideHeader] = useState(false)
 const [elevateHeader, setElevateHeader] = useState(false)
 
 const token = useAuthStore((s) => s.token)
 const setUser = useAuthStore((s) => s.setUser)
+const logout = useAuthStore((s) => s.logout)
+const navigate = useNavigate()
 
 const scrollRef = useRef(null)
-const lastScrollTop = useRef(0)
+const idleTimerRef = useRef(null)
+const lastActivityRef = useRef(Date.now())
+const IDLE_LIMIT_MS = 2 * 60 * 1000 // 2 minutes
 
 const toggleSidebar = () => setSidebarOpen(prev => !prev)
 
@@ -29,19 +32,11 @@ if (!el) return
 
 const handleScroll = () => {
 
-  const currentScroll = el.scrollTop
-
-  if (currentScroll > lastScrollTop.current && currentScroll > 70)
-    setHideHeader(true)
-  else
-    setHideHeader(false)
-
-  setElevateHeader(currentScroll > 8)
-
-  lastScrollTop.current = currentScroll <= 0 ? 0 : currentScroll
+  setElevateHeader(el.scrollTop > 8)
 }
 
 el.addEventListener("scroll", handleScroll)
+handleScroll()
 
 return () => el.removeEventListener("scroll", handleScroll)
 
@@ -77,6 +72,59 @@ return () => { mounted = false }
 
 }, [token, setUser])
 
+/* ================= IDLE AUTO-LOGOUT ================= */
+
+useEffect(() => {
+
+  if (!token) return
+
+  const activityEvents = [
+    "mousemove",
+    "mousedown",
+    "keydown",
+    "scroll",
+    "touchstart"
+  ]
+
+  const triggerLogout = () => {
+    logout()
+    navigate("/login", { replace: true })
+    alert("Logged out due to inactivity (2 minutes).")
+  }
+
+  const resetIdleTimer = () => {
+    lastActivityRef.current = Date.now()
+    if (idleTimerRef.current) clearTimeout(idleTimerRef.current)
+    idleTimerRef.current = setTimeout(triggerLogout, IDLE_LIMIT_MS)
+  }
+
+  const handleVisibility = () => {
+    if (!document.hidden) {
+      const now = Date.now()
+      if (now - lastActivityRef.current >= IDLE_LIMIT_MS) {
+        triggerLogout()
+      } else {
+        resetIdleTimer()
+      }
+    }
+  }
+
+  activityEvents.forEach((evt) =>
+    window.addEventListener(evt, resetIdleTimer, { passive: true })
+  )
+  document.addEventListener("visibilitychange", handleVisibility)
+  resetIdleTimer()
+
+  return () => {
+    activityEvents.forEach((evt) =>
+      window.removeEventListener(evt, resetIdleTimer)
+    )
+    document.removeEventListener("visibilitychange", handleVisibility)
+    if (idleTimerRef.current) clearTimeout(idleTimerRef.current)
+  }
+
+}, [token, logout, navigate])
+
 /* ================= LAYOUT ================= */
 
 return (
@@ -99,8 +147,7 @@ return (
         top: 0,
         zIndex: 1300,
         flexShrink: 0,
-        transform: hideHeader ? "translateY(-100%)" : "translateY(0)",
-        transition: "transform .35s ease, box-shadow .25s ease",
+        transition: "box-shadow .25s ease",
         boxShadow: elevateHeader
           ? "0 8px 26px rgba(0,0,0,0.28)"
           : "none",
@@ -162,6 +209,7 @@ return (
             overflowY: "auto",
             overflowX: "hidden",
             scrollbarGutter: "stable",
+            px: { xs: 1.5, md: 2.5 },
           }}
         >
           {/* ================= PAGE CONTAINER ================= */}
@@ -174,7 +222,7 @@ return (
               background: "#ffffff",
               border: "1px solid rgba(15,42,90,.18)",
               boxShadow: "0 25px 70px rgba(8,26,51,.18)",
-              p: { xs: 2, md: 3, lg: 4 },
+              p: { xs: 1, md: 1, lg: 1, xl: 1 },
               position: "relative",
               overflow: "clip",
             }}

@@ -17,7 +17,6 @@ import {
 /* ICONS */
 
 import DashboardIcon from "@mui/icons-material/Dashboard"
-import InsightsIcon from "@mui/icons-material/Insights"
 import PeopleIcon from "@mui/icons-material/People"
 import EngineeringIcon from "@mui/icons-material/Engineering"
 import ListAltIcon from "@mui/icons-material/ListAlt"
@@ -38,8 +37,6 @@ const menuStructure = [
     items: [
       { title: "Dashboard", path: "/", icon: DashboardIcon, exact: true },
       { title: "My Profile", path: "/profile", icon: AccountCircleIcon },
-      { title: "Analytics", path: "/analytics", icon: InsightsIcon },
-      { title: "Admin Dashboard", path: "/admin-dashboard", icon: InsightsIcon, adminOnly: true },
       { title: "Andon Display", path: "/andon", icon: TvIcon },
     ],
   },
@@ -57,7 +54,6 @@ const menuStructure = [
       { title: "Gate Control", path: "/gate", icon: LoginIcon },
       { title: "Manual Gate Entry", path: "/gate/manual", icon: LoginIcon },
       { title: "Gate Display", path: "/gate/display", icon: TvIcon },
-      { title: "Materials", path: "/materials", icon: InventoryIcon, adminOnly: true },
     ],
   },
   {
@@ -65,7 +61,6 @@ const menuStructure = [
     items: [
       { title: "Visitor Transactions", path: "/transactions/visitors", icon: AssessmentIcon },
       { title: "Labour Transactions", path: "/transactions/labours", icon: AssessmentIcon },
-      { title: "Live Muster", path: "/reports/live-muster", icon: AssessmentIcon },
       { title: "Reports", path: "/reports", icon: AssessmentIcon },
     ],
   },

@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Gate Display</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div class="screen">
+    <header class="bar">
+      <div class="gate-name" id="gateName">Gate</div>
+      <div class="status" id="status">WAITING...</div>
+      <div class="clock" id="clock"></div>
+    </header>
+
+    <main class="content">
+      <section class="photo registered">
+        <h2>Registered Photo</h2>
+        <img id="registeredPhoto" alt="Registered" />
+      </section>
+      <section class="photo live">
+        <h2>Live Capture</h2>
+        <img id="livePhoto" alt="Live" />
+      </section>
+      <section class="details">
+        <div class="row">
+          <span class="label">Visitor</span>
+          <span id="visitorName" class="value">--</span>
+        </div>
+        <div class="row">
+          <span class="label">Visitor ID</span>
+          <span id="visitorId" class="value">--</span>
+        </div>
+        <div class="row">
+          <span class="label">Company</span>
+          <span id="company" class="value">--</span>
+        </div>
+      </section>
+    </main>
+  </div>
+  <script type="module" src="app.js"></script>
+</body>
+</html>
