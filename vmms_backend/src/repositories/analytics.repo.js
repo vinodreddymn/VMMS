@@ -258,10 +258,10 @@ export const getPeakHours = async (from_date, to_date) => {
     SELECT
       EXTRACT(HOUR FROM scan_time)::integer as hour,
       COUNT(*) as total_scans,
-      COUNT(DISTINCT CASE WHEN direction = 'IN' THEN person_id END) as entries,
-      COUNT(DISTINCT CASE WHEN direction = 'OUT' THEN person_id END) as exits,
-      COUNT(DISTINCT CASE WHEN status = 'FAILED' THEN id END) as failed_scans,
-      ROUND(100.0 * COUNT(DISTINCT CASE WHEN status = 'FAILED' THEN id END) / NULLIF(COUNT(*), 0), 2) as failure_rate
+      COUNT(*) FILTER (WHERE direction = 'IN') as entries,
+      COUNT(*) FILTER (WHERE direction = 'OUT') as exits,
+      COUNT(*) FILTER (WHERE status = 'FAILED') as failed_scans,
+      ROUND(100.0 * (COUNT(*) FILTER (WHERE status = 'FAILED')) / NULLIF(COUNT(*), 0), 2) as failure_rate
     FROM access_logs
     WHERE scan_time::DATE >= $1::DATE AND scan_time::DATE <= $2::DATE
     GROUP BY EXTRACT(HOUR FROM scan_time)

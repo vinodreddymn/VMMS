@@ -254,27 +254,39 @@ export const getEvents = async (req, res) => {
           'VISITOR' AS person_type,
           v.id AS person_id,
           v.pass_no,
-          v.full_name,
-          v.primary_phone AS phone,
-          v.aadhaar_last4,
-          v.enrollment_photo_path,
-          p.project_name,
-          d.department_name,
-          h.host_name,
-          g.gate_name,
-          NULL::text AS supervisor_name,
-          NULL::text AS token_uid
-        FROM access_logs al
-        LEFT JOIN visitors v ON al.person_id = v.id AND al.person_type = 'VISITOR'
-        LEFT JOIN projects p ON v.project_id = p.id
-        LEFT JOIN departments d ON v.department_id = d.id
-        LEFT JOIN hosts h ON v.host_id = h.id
-        LEFT JOIN gates g ON al.gate_id = g.id
-        WHERE al.person_type = 'VISITOR'
-          AND al.scan_time::DATE = $1::DATE
-      ),
-      labour_events AS (
-        SELECT
+        v.full_name,
+        v.primary_phone AS phone,
+        v.aadhaar_last4,
+        v.enrollment_photo_path,
+        v.designation,
+        v.valid_from AS pass_valid_from,
+        v.valid_to AS pass_valid_to,
+        p.project_name,
+        d.department_name,
+        h.host_name,
+        g.gate_name,
+        v.company_name,
+        perm.gate_permissions,
+        v.work_order_expiry AS pass_valid_till,
+        NULL::text AS supervisor_name,
+        NULL::text AS token_uid
+      FROM access_logs al
+      LEFT JOIN visitors v ON al.person_id = v.id AND al.person_type = 'VISITOR'
+      LEFT JOIN projects p ON v.project_id = p.id
+      LEFT JOIN departments d ON v.department_id = d.id
+      LEFT JOIN hosts h ON v.host_id = h.id
+      LEFT JOIN gates g ON al.gate_id = g.id
+      LEFT JOIN LATERAL (
+        SELECT COALESCE(ARRAY_AGG(g2.gate_name ORDER BY g2.gate_name), '{}') AS gate_permissions
+        FROM visitor_gate_permissions vgp
+        JOIN gates g2 ON g2.id = vgp.gate_id
+        WHERE vgp.visitor_id = v.id
+      ) perm ON TRUE
+      WHERE al.person_type = 'VISITOR'
+        AND al.scan_time::DATE = $1::DATE
+    ),
+    labour_events AS (
+      SELECT
           al.id AS access_log_id,
           al.scan_time,
           al.direction,
@@ -283,20 +295,25 @@ export const getEvents = async (req, res) => {
           'LABOUR' AS person_type,
           l.id AS person_id,
           NULL::text AS pass_no,
-          l.full_name,
-          l.phone,
-          NULL::text AS aadhaar_last4,
-          sup.enrollment_photo_path AS enrollment_photo_path,
-          p.project_name,
-          NULL::text AS department_name,
-          NULL::text AS host_name,
-          g.gate_name,
-          sup.full_name AS supervisor_name,
-          lt.token_uid
-        FROM access_logs al
-        LEFT JOIN labours l ON al.person_id = l.id AND al.person_type = 'LABOUR'
-        LEFT JOIN visitors sup ON l.supervisor_id = sup.id
-        LEFT JOIN projects p ON sup.project_id = p.id
+        l.full_name,
+        l.phone,
+        NULL::text AS aadhaar_last4,
+        sup.enrollment_photo_path AS enrollment_photo_path,
+        sup.enrollment_photo_path AS supervisor_enrollment_photo_path,
+        NULL::text AS designation,
+        NULL::date AS pass_valid_from,
+        NULL::date AS pass_valid_to,
+        p.project_name,
+        NULL::text AS department_name,
+        NULL::text AS host_name,
+        g.gate_name,
+        sup.full_name AS supervisor_name,
+        sup.company_name AS supervisor_company,
+        lt.token_uid
+      FROM access_logs al
+      LEFT JOIN labours l ON al.person_id = l.id AND al.person_type = 'LABOUR'
+      LEFT JOIN visitors sup ON l.supervisor_id = sup.id
+      LEFT JOIN projects p ON sup.project_id = p.id
         LEFT JOIN gates g ON al.gate_id = g.id
         LEFT JOIN LATERAL (
           SELECT token_uid

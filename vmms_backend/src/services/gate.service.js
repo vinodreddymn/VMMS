@@ -128,6 +128,13 @@ class GateAuthService {
 
       const gateInfo = await gateRepo.getGate(resolvedGateId);
 
+      // Fetch gate permissions (names) for the visitor to show on Andon popup
+      const permRes = await db.query(
+        `SELECT g.gate_name FROM visitor_gate_permissions vgp JOIN gates g ON g.id = vgp.gate_id WHERE vgp.visitor_id = $1`,
+        [visitor.id]
+      );
+      const gatePermissions = permRes.rows.map((r) => r.gate_name);
+
       emitAccessEvent({
         person_type: "VISITOR",
         direction,
@@ -145,6 +152,11 @@ class GateAuthService {
         enrollment_photo_path: visitor.enrollment_photo_path,
         live_photo_path: log?.live_photo_path || null,
         access_log_id: log?.id || null,
+        designation: visitor.designation,
+        pass_valid_from: visitor.valid_from,
+        pass_valid_to: visitor.valid_to,
+        pass_valid_till: visitor.work_order_expiry,
+        permissions: gatePermissions,
       });
 
       return {
@@ -234,12 +246,15 @@ class GateAuthService {
         direction,
         full_name: labourToken.full_name,
         supervisor_name: supervisor?.full_name || "-",
+        supervisor_company: supervisor?.company_name || "-",
+        supervisor_enrollment_photo_path: supervisor?.enrollment_photo_path || null,
         gate_id: resolvedGateId,
         gate_name: gateInfo?.gate_name || "Gate " + resolvedGateId,
         scan_time: log?.scan_time || new Date(),
         token_uid: labourToken.token_uid,
         live_photo_path: log?.live_photo_path || null,
         access_log_id: log?.id || null,
+        pass_valid_to: labourToken.valid_until || null,
       });
 
       return {

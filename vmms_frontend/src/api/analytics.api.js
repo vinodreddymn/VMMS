@@ -14,7 +14,7 @@ export const getProjectStats = (from_date, to_date) =>
   api.get(`/analytics/project-stats?from_date=${from_date}&to_date=${to_date}`)
 
 export const getPeakHours = (from_date, to_date) =>
-  api.get(`/analytics/peak-hours?from_date=${from_date}&to_date=${to_date}`)
+  api.get('/analytics/peak-hours', { params: { from_date, to_date } })
 
 export const getRiskScores = (limit = 50, from_date, to_date) =>
   api.get('/analytics/risk-scoring', { params: { limit, from_date, to_date } })

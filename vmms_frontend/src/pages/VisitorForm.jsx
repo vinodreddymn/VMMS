@@ -3,6 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom'
 import { getMasters } from '../api/master.api'
 import useAuthStore from '../store/auth.store'
 import { normalizeRole, canCreateVisitor, canEditVisitor } from '../utils/visitorPermissions'
+import blacklistApi from '../api/blacklist.api'
 import {
   Box, Typography, TextField, Button, Paper, Grid,
   Avatar, Divider, MenuItem, Chip, CircularProgress,
@@ -253,17 +254,59 @@ export default function VisitorsForm() {
     }
 
     const nextErrors = {}
+    const phone = form.primary_phone?.trim()
+    const aadhaar = form.aadhaar?.trim()
+
     if (!form.first_name?.trim()) nextErrors.first_name = 'First name is required'
-    if (!form.primary_phone?.trim()) nextErrors.primary_phone = 'Primary phone is required'
+    if (!phone) nextErrors.primary_phone = 'Primary phone is required'
+    else if (!/^\d{10,15}$/.test(phone)) nextErrors.primary_phone = 'Phone must be 10-15 digits'
+
     if (!form.visitor_type_id) nextErrors.visitor_type_id = 'Visitor type is required'
+    if (!form.department_id) nextErrors.department_id = 'Department is required'
+    if (!form.project_id) nextErrors.project_id = 'Project is required'
+    if (!form.host_id) nextErrors.host_id = 'Host is required'
+    if (!form.entrance_id) nextErrors.entrance_id = 'Entrance gate is required'
+    if (!form.allowed_gates?.length) nextErrors.allowed_gates = 'Select at least one allowed gate'
+
     if (!isEdit && !form.pass_no?.trim()) nextErrors.pass_no = 'Pass number is required'
-    if (!isEdit && !form.aadhaar?.trim()) nextErrors.aadhaar = 'Aadhaar is required'
+    if (!isEdit && !aadhaar) nextErrors.aadhaar = 'Aadhaar is required'
+    if (aadhaar && !/^\d{12}$/.test(aadhaar)) nextErrors.aadhaar = 'Aadhaar must be 12 digits'
+
+    if (form.email && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(form.email)) nextErrors.email = 'Invalid email'
+
+    const toDate = (val) => (val ? new Date(val) : null)
+    const validFrom = toDate(form.valid_from)
+    const validTo = toDate(form.valid_to)
+    if (validFrom && validTo && validFrom > validTo) nextErrors.valid_to = 'Valid to must be after valid from'
 
     setErrors(nextErrors)
     if (Object.keys(nextErrors).length) return
 
     try {
       setLoading(true)
+      // Blacklist check
+      try {
+        const payload = {}
+        if (form.aadhaar) payload.aadhaar = form.aadhaar
+        if (!payload.aadhaar && form.primary_phone) payload.phone = form.primary_phone
+        if (payload.aadhaar || payload.phone) {
+          const res = await blacklistApi.checkBlacklist(payload)
+          if (res?.data?.isBlacklisted) {
+            const entry = res.data.entry || {}
+            alert(
+              `Blacklisted entry found.\nReason: ${entry.reason || 'N/A'}\nType: ${entry.block_type || 'N/A'}`
+            )
+            setLoading(false)
+            return
+          }
+        }
+      } catch (err) {
+        console.error('Blacklist check failed', err)
+        setLoading(false)
+        setErrors({ ...nextErrors, blacklist: 'Blacklist check failed, please retry' })
+        return
+      }
+
       const payload = {
         ...form,
         smartphone_allowed: Boolean(form.smartphone_allowed),

@@ -1,8 +1,42 @@
-import api from './axios'
+import api from "./axios";
 
-export const addToBlacklist = (payload) => api.post('/blacklist', payload)
-export const checkBlacklist = (payload) => api.post('/blacklist/check', payload)
-export const listBlacklist = (params = {}) => api.get('/blacklist', { params })
-export const removeBlacklist = (blacklist_id) => api.delete(`/blacklist/${blacklist_id}`)
+// =====================================================
+// ENDPOINTS
+// =====================================================
+const BASE_URL = "/blacklist";
 
-export default { addToBlacklist, checkBlacklist, listBlacklist, removeBlacklist }
+// =====================================================
+// BLACKLIST API
+// =====================================================
+
+// Add to blacklist
+export const addToBlacklist = (payload) => {
+  return api.post(`${BASE_URL}`, payload);
+};
+
+// Check blacklist (gate / enrollment)
+export const checkBlacklist = (payload) => {
+  return api.post(`${BASE_URL}/check`, payload);
+};
+
+// Get all blacklist entries (supports query params)
+export const listBlacklist = (params = {}) => {
+  return api.get(`${BASE_URL}`, { params });
+};
+
+// Remove from blacklist
+export const removeBlacklist = (blacklistId) => {
+  return api.delete(`${BASE_URL}/${blacklistId}`);
+};
+
+// =====================================================
+// EXPORT (optional grouped usage)
+// =====================================================
+const blacklistApi = {
+  addToBlacklist,
+  checkBlacklist,
+  listBlacklist,
+  removeBlacklist,
+};
+
+export default blacklistApi;

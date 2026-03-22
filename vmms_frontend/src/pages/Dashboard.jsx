@@ -220,6 +220,8 @@ export default function Dashboard() {
   const fetchExtendedAnalytics = async () => {
     setAnalyticsLoading(true)
     setAnalyticsError('')
+    // Clear previous peak-hour rows so the table doesn't momentarily show stale data
+    setPeakHours([])
     try {
       const [daily, peaks, gates, trends] = await Promise.all([
         analyticsApi.getDailyStats(fromDate, toDate).catch(() => ({})),
@@ -956,6 +958,9 @@ export default function Dashboard() {
               <Typography variant="h6" fontWeight={600} mb={2}>
                 Peak Hours Distribution
               </Typography>
+              <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 1 }}>
+                Range: {fromDate} → {toDate}
+              </Typography>
               <TableContainer>
                 <Table size="small">
                   <TableHead>
@@ -964,8 +969,7 @@ export default function Dashboard() {
                       <TableCell align="right">Total Scans</TableCell>
                       <TableCell align="right">Entries</TableCell>
                       <TableCell align="right">Exits</TableCell>
-                      <TableCell align="right">Failed</TableCell>
-                      <TableCell align="right">Failure Rate</TableCell>
+
                     </TableRow>
                   </TableHead>
                   <TableBody>
@@ -978,15 +982,7 @@ export default function Dashboard() {
                           <TableCell align="right">{row.total_scans}</TableCell>
                           <TableCell align="right">{row.entries}</TableCell>
                           <TableCell align="right">{row.exits}</TableCell>
-                          <TableCell align="right">{row.failed_scans}</TableCell>
-                          <TableCell align="right">
-                            <Chip
-                              label={`${row.failure_rate || 0}%`}
-                              size="small"
-                              color={row.failure_rate > 5 ? 'error' : 'success'}
-                              variant="outlined"
-                            />
-                          </TableCell>
+
                         </TableRow>
                       ))
                     )}
@@ -1010,7 +1006,7 @@ export default function Dashboard() {
                       <TableCell align="right">Unique Exits</TableCell>
                       <TableCell align="right">Entry Scans</TableCell>
                       <TableCell align="right">Exit Scans</TableCell>
-                      <TableCell align="right">Failed</TableCell>
+                      
                     </TableRow>
                   </TableHead>
                   <TableBody>
@@ -1024,9 +1020,7 @@ export default function Dashboard() {
                           <TableCell align="right">{row.unique_exits}</TableCell>
                           <TableCell align="right">{row.total_entry_scans}</TableCell>
                           <TableCell align="right">{row.total_exit_scans}</TableCell>
-                          <TableCell align="right">
-                            <Chip label={row.failed_attempts} size="small" variant="outlined" />
-                          </TableCell>
+
                         </TableRow>
                       ))
                     )}

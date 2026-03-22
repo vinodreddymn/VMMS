@@ -9,6 +9,7 @@ import db from "./config/db.js";
 import initSocket from "./sockets/realtime.socket.js";
 import { startGateHealthWatcher } from "./services/gateHealthWatcher.service.js";
 import runMigrations from "./utils/migration.util.js";
+import gammuService from "./services/gammu.service.js";
 
 // -----------------------------------------------------
 // HTTP / HTTPS SERVER SETUP
@@ -51,6 +52,15 @@ if (env.useHttps) {
 }
 
 startGateHealthWatcher();
+
+
+setInterval(async () => {
+  try {
+    await gammuService.processPending(20);
+  } catch (err) {
+    console.error(err);
+  }
+}, 5000);
 
 // Initialize WebSocket
 initSocket(server);

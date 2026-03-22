@@ -26,6 +26,7 @@ export default function BlacklistForm({ open, onClose, onSaved }) {
     if (form.aadhaar && !/^\d{12}$/.test(form.aadhaar.trim())) nextErrors.aadhaar = 'Aadhaar must be 12 digits'
     if (form.phone && !/^\d{10,15}$/.test(form.phone.trim())) nextErrors.phone = 'Phone must be 10-15 digits'
     if (!form.reason?.trim()) nextErrors.reason = 'Reason is required'
+    if (form.reason && form.reason.length > 240) nextErrors.reason = 'Reason too long (max 240 chars)'
     setErrors(nextErrors)
     if (Object.keys(nextErrors).length) return
 

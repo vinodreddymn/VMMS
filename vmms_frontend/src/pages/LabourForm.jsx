@@ -14,6 +14,7 @@ import {
 } from '@mui/material'
 import visitorApi from '../api/visitor.api'
 import labourApi from '../api/labour.api'
+import blacklistApi from '../api/blacklist.api'
 
 export default function LabourEnrollmentDialog({ open, onClose, onSaved }) {
   const [step, setStep] = useState(1)
@@ -97,6 +98,30 @@ export default function LabourEnrollmentDialog({ open, onClose, onSaved }) {
       return
     }
 
+    // Field validations
+    for (const [idx, row] of validRows.entries()) {
+      if (!row.full_name?.trim()) {
+        setError(`Row ${idx + 1}: Full name is required`)
+        return
+      }
+      if (!row.aadhaar?.trim() || !/^\d{12}$/.test(row.aadhaar.trim())) {
+        setError(`Row ${idx + 1}: Aadhaar must be 12 digits`)
+        return
+      }
+      if (!row.token_uid?.trim()) {
+        setError(`Row ${idx + 1}: RFID token is required`)
+        return
+      }
+      if (row.phone && !/^\d{10,15}$/.test(String(row.phone).trim())) {
+        setError(`Row ${idx + 1}: Phone must be 10-15 digits`)
+        return
+      }
+      if (row.age && (Number(row.age) < 15 || Number(row.age) > 75)) {
+        setError(`Row ${idx + 1}: Age must be between 15 and 75`)
+        return
+      }
+    }
+
     const duplicateToken = (() => {
       const seen = new Set()
       for (const row of validRows) {
@@ -110,6 +135,31 @@ export default function LabourEnrollmentDialog({ open, onClose, onSaved }) {
 
     if (duplicateToken) {
       setError(`Duplicate RFID token entered: ${duplicateToken}. Each labour must have a unique token.`)
+      return
+    }
+
+    // blacklist check by Aadhaar / phone
+    try {
+      // Backend expects single aadhaar or phone; check each row individually
+      for (const row of validRows) {
+        const payload = {}
+        if (row.aadhaar) payload.aadhaar = row.aadhaar
+        if (!payload.aadhaar && row.phone) payload.phone = row.phone
+        if (!payload.aadhaar && !payload.phone) continue
+
+        const res = await blacklistApi.checkBlacklist(payload)
+        if (res?.data?.isBlacklisted) {
+          const entry = res.data.entry || {}
+          const msg = `Blacklisted entry: ${payload.aadhaar ? `Aadhaar ${payload.aadhaar}` : payload.phone}\nReason: ${
+            entry.reason || 'N/A'
+          }\nType: ${entry.block_type || 'N/A'}`
+          alert(msg)
+          return
+        }
+      }
+    } catch (err) {
+      console.error('Blacklist check failed', err)
+      setError('Could not verify blacklist. Please retry.')
       return
     }
 
