@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict 9eb9NHaOydUN1u9Fr7eh4eztduYXybfLoWdwrHmwi6K8SLycOD0sueaQJRG73YO
+\restrict 43uQjDb7pHg416791BtzeDuR1iiEbb1uS6kdLd9Th4irFXHz5gL7Gr26fxC21Ms
 
 -- Dumped from database version 18.1
 -- Dumped by pg_dump version 18.1
@@ -19,8 +19,186 @@ SET xmloption = content;
 SET client_min_messages = warning;
 SET row_security = off;
 
+ALTER TABLE IF EXISTS ONLY public.visitors DROP CONSTRAINT IF EXISTS visitors_visitor_type_id_fkey;
+ALTER TABLE IF EXISTS ONLY public.visitors DROP CONSTRAINT IF EXISTS visitors_project_id_fkey;
+ALTER TABLE IF EXISTS ONLY public.visitors DROP CONSTRAINT IF EXISTS visitors_host_id_fkey;
+ALTER TABLE IF EXISTS ONLY public.visitors DROP CONSTRAINT IF EXISTS visitors_entrance_id_fkey;
+ALTER TABLE IF EXISTS ONLY public.visitors DROP CONSTRAINT IF EXISTS visitors_department_id_fkey;
+ALTER TABLE IF EXISTS ONLY public.visitors DROP CONSTRAINT IF EXISTS visitors_created_by_fkey;
+ALTER TABLE IF EXISTS ONLY public.visitor_status_audit DROP CONSTRAINT IF EXISTS visitor_status_audit_visitor_id_fkey;
+ALTER TABLE IF EXISTS ONLY public.visitor_status_audit DROP CONSTRAINT IF EXISTS visitor_status_audit_changed_by_fkey;
+ALTER TABLE IF EXISTS ONLY public.visitor_documents DROP CONSTRAINT IF EXISTS visitor_documents_visitor_id_fkey;
+ALTER TABLE IF EXISTS ONLY public.users DROP CONSTRAINT IF EXISTS users_role_id_fkey;
+ALTER TABLE IF EXISTS ONLY public.sync_queue DROP CONSTRAINT IF EXISTS sync_queue_gate_id_fkey;
+ALTER TABLE IF EXISTS ONLY public.rfid_cards DROP CONSTRAINT IF EXISTS rfid_cards_visitor_id_fkey;
+ALTER TABLE IF EXISTS ONLY public.projects DROP CONSTRAINT IF EXISTS projects_department_id_fkey;
+ALTER TABLE IF EXISTS ONLY public.material_transactions DROP CONSTRAINT IF EXISTS material_transactions_visitor_id_fkey;
+ALTER TABLE IF EXISTS ONLY public.material_transactions DROP CONSTRAINT IF EXISTS material_transactions_material_id_fkey;
+ALTER TABLE IF EXISTS ONLY public.manifest_labours DROP CONSTRAINT IF EXISTS manifest_labours_manifest_id_fkey;
+ALTER TABLE IF EXISTS ONLY public.manifest_labours DROP CONSTRAINT IF EXISTS manifest_labours_labour_id_fkey;
+ALTER TABLE IF EXISTS ONLY public.labours DROP CONSTRAINT IF EXISTS labours_supervisor_id_fkey;
+ALTER TABLE IF EXISTS ONLY public.labour_tokens DROP CONSTRAINT IF EXISTS labour_tokens_labour_id_fkey;
+ALTER TABLE IF EXISTS ONLY public.labour_manifests DROP CONSTRAINT IF EXISTS labour_manifests_supervisor_id_fkey;
+ALTER TABLE IF EXISTS ONLY public.hosts DROP CONSTRAINT IF EXISTS hosts_department_id_fkey;
+ALTER TABLE IF EXISTS ONLY public.gates DROP CONSTRAINT IF EXISTS gates_entrance_id_fkey;
+ALTER TABLE IF EXISTS ONLY public.gate_health_logs DROP CONSTRAINT IF EXISTS gate_health_logs_gate_id_fkey;
+ALTER TABLE IF EXISTS ONLY public.gate_health DROP CONSTRAINT IF EXISTS gate_health_gate_id_fkey;
+ALTER TABLE IF EXISTS ONLY public.visitor_gate_permissions DROP CONSTRAINT IF EXISTS fk_vgp_visitor;
+ALTER TABLE IF EXISTS ONLY public.visitor_gate_permissions DROP CONSTRAINT IF EXISTS fk_vgp_gate;
+ALTER TABLE IF EXISTS ONLY public.host_projects DROP CONSTRAINT IF EXISTS fk_hp_project;
+ALTER TABLE IF EXISTS ONLY public.host_projects DROP CONSTRAINT IF EXISTS fk_hp_host;
+ALTER TABLE IF EXISTS ONLY public.card_reissue_log DROP CONSTRAINT IF EXISTS card_reissue_log_reissued_by_fkey;
+ALTER TABLE IF EXISTS ONLY public.card_reissue_log DROP CONSTRAINT IF EXISTS card_reissue_log_old_card_id_fkey;
+ALTER TABLE IF EXISTS ONLY public.card_reissue_log DROP CONSTRAINT IF EXISTS card_reissue_log_new_card_id_fkey;
+ALTER TABLE IF EXISTS ONLY public.card_reissue_log DROP CONSTRAINT IF EXISTS card_reissue_log_aso_document_id_fkey;
+ALTER TABLE IF EXISTS ONLY public.biometric_match_audit DROP CONSTRAINT IF EXISTS biometric_match_audit_gate_id_fkey;
+ALTER TABLE IF EXISTS ONLY public.biometric_data DROP CONSTRAINT IF EXISTS biometric_data_visitor_id_fkey;
+ALTER TABLE IF EXISTS public.access_logs DROP CONSTRAINT IF EXISTS access_logs_gate_id_fkey;
+DROP TRIGGER IF EXISTS trg_validate_host_project ON public.host_projects;
+DROP INDEX IF EXISTS public.idx_visitors_vehicle_number;
+DROP INDEX IF EXISTS public.idx_visitors_can_register_labours;
+DROP INDEX IF EXISTS public.idx_sms_logs_status;
+DROP INDEX IF EXISTS public.idx_rfid_stock_uid;
+DROP INDEX IF EXISTS public.idx_rfid_stock_status;
+DROP INDEX IF EXISTS public.idx_rfid_cards_stock_uid;
+DROP INDEX IF EXISTS public.idx_rfid_cards_stock_status;
+DROP INDEX IF EXISTS public.idx_hp_project_id;
+DROP INDEX IF EXISTS public.idx_hp_host_id;
+ALTER TABLE IF EXISTS ONLY public.visitors DROP CONSTRAINT IF EXISTS visitors_pkey;
+ALTER TABLE IF EXISTS ONLY public.visitors DROP CONSTRAINT IF EXISTS visitors_pass_no_key;
+ALTER TABLE IF EXISTS ONLY public.visitor_types DROP CONSTRAINT IF EXISTS visitor_types_type_name_key;
+ALTER TABLE IF EXISTS ONLY public.visitor_types DROP CONSTRAINT IF EXISTS visitor_types_pkey;
+ALTER TABLE IF EXISTS ONLY public.visitor_status_audit DROP CONSTRAINT IF EXISTS visitor_status_audit_pkey;
+ALTER TABLE IF EXISTS ONLY public.visitor_gate_permissions DROP CONSTRAINT IF EXISTS visitor_gate_permissions_pkey;
+ALTER TABLE IF EXISTS ONLY public.visitor_documents DROP CONSTRAINT IF EXISTS visitor_documents_pkey;
+ALTER TABLE IF EXISTS ONLY public.users DROP CONSTRAINT IF EXISTS users_username_key;
+ALTER TABLE IF EXISTS ONLY public.users DROP CONSTRAINT IF EXISTS users_pkey;
+ALTER TABLE IF EXISTS ONLY public.visitor_gate_permissions DROP CONSTRAINT IF EXISTS uq_visitor_gate;
+ALTER TABLE IF EXISTS ONLY public.host_projects DROP CONSTRAINT IF EXISTS uq_host_project;
+ALTER TABLE IF EXISTS ONLY public.sync_queue DROP CONSTRAINT IF EXISTS sync_queue_pkey;
+ALTER TABLE IF EXISTS ONLY public.sms_logs DROP CONSTRAINT IF EXISTS sms_logs_pkey;
+ALTER TABLE IF EXISTS ONLY public.roles DROP CONSTRAINT IF EXISTS roles_role_name_key;
+ALTER TABLE IF EXISTS ONLY public.roles DROP CONSTRAINT IF EXISTS roles_pkey;
+ALTER TABLE IF EXISTS ONLY public.rfid_stock DROP CONSTRAINT IF EXISTS rfid_stock_uid_key;
+ALTER TABLE IF EXISTS ONLY public.rfid_stock DROP CONSTRAINT IF EXISTS rfid_stock_pkey;
+ALTER TABLE IF EXISTS ONLY public.rfid_cards_stock DROP CONSTRAINT IF EXISTS rfid_cards_stock_uid_key;
+ALTER TABLE IF EXISTS ONLY public.rfid_cards_stock DROP CONSTRAINT IF EXISTS rfid_cards_stock_pkey;
+ALTER TABLE IF EXISTS ONLY public.rfid_cards DROP CONSTRAINT IF EXISTS rfid_cards_pkey;
+ALTER TABLE IF EXISTS ONLY public.rfid_cards DROP CONSTRAINT IF EXISTS rfid_cards_card_uid_key;
+ALTER TABLE IF EXISTS ONLY public.projects DROP CONSTRAINT IF EXISTS projects_pkey;
+ALTER TABLE IF EXISTS ONLY public.materials DROP CONSTRAINT IF EXISTS materials_pkey;
+ALTER TABLE IF EXISTS ONLY public.material_transactions DROP CONSTRAINT IF EXISTS material_transactions_pkey;
+ALTER TABLE IF EXISTS ONLY public.manifest_labours DROP CONSTRAINT IF EXISTS manifest_labours_pkey;
+ALTER TABLE IF EXISTS ONLY public.labours DROP CONSTRAINT IF EXISTS labours_pkey;
+ALTER TABLE IF EXISTS ONLY public.labour_tokens DROP CONSTRAINT IF EXISTS labour_tokens_pkey;
+ALTER TABLE IF EXISTS ONLY public.labour_manifests DROP CONSTRAINT IF EXISTS labour_manifests_pkey;
+ALTER TABLE IF EXISTS ONLY public.hosts DROP CONSTRAINT IF EXISTS hosts_pkey;
+ALTER TABLE IF EXISTS ONLY public.host_projects DROP CONSTRAINT IF EXISTS host_projects_pkey;
+ALTER TABLE IF EXISTS ONLY public.gates DROP CONSTRAINT IF EXISTS gates_pkey;
+ALTER TABLE IF EXISTS ONLY public.gate_health DROP CONSTRAINT IF EXISTS gate_health_pkey;
+ALTER TABLE IF EXISTS ONLY public.gate_health_logs DROP CONSTRAINT IF EXISTS gate_health_logs_pkey;
+ALTER TABLE IF EXISTS ONLY public.entrances DROP CONSTRAINT IF EXISTS entrances_pkey;
+ALTER TABLE IF EXISTS ONLY public.entrances DROP CONSTRAINT IF EXISTS entrances_entrance_code_key;
+ALTER TABLE IF EXISTS ONLY public.departments DROP CONSTRAINT IF EXISTS departments_pkey;
+ALTER TABLE IF EXISTS ONLY public.card_reissue_log DROP CONSTRAINT IF EXISTS card_reissue_log_pkey;
+ALTER TABLE IF EXISTS ONLY public.blacklist DROP CONSTRAINT IF EXISTS blacklist_pkey;
+ALTER TABLE IF EXISTS ONLY public.biometric_match_audit DROP CONSTRAINT IF EXISTS biometric_match_audit_pkey;
+ALTER TABLE IF EXISTS ONLY public.biometric_data DROP CONSTRAINT IF EXISTS biometric_data_pkey;
+ALTER TABLE IF EXISTS ONLY public.access_logs_default DROP CONSTRAINT IF EXISTS access_logs_default_pkey;
+ALTER TABLE IF EXISTS ONLY public.access_logs DROP CONSTRAINT IF EXISTS access_logs_pkey;
+ALTER TABLE IF EXISTS public.visitors ALTER COLUMN id DROP DEFAULT;
+ALTER TABLE IF EXISTS public.visitor_types ALTER COLUMN id DROP DEFAULT;
+ALTER TABLE IF EXISTS public.visitor_status_audit ALTER COLUMN id DROP DEFAULT;
+ALTER TABLE IF EXISTS public.visitor_gate_permissions ALTER COLUMN id DROP DEFAULT;
+ALTER TABLE IF EXISTS public.visitor_documents ALTER COLUMN id DROP DEFAULT;
+ALTER TABLE IF EXISTS public.users ALTER COLUMN id DROP DEFAULT;
+ALTER TABLE IF EXISTS public.sync_queue ALTER COLUMN id DROP DEFAULT;
+ALTER TABLE IF EXISTS public.sms_logs ALTER COLUMN id DROP DEFAULT;
+ALTER TABLE IF EXISTS public.roles ALTER COLUMN id DROP DEFAULT;
+ALTER TABLE IF EXISTS public.rfid_stock ALTER COLUMN id DROP DEFAULT;
+ALTER TABLE IF EXISTS public.rfid_cards_stock ALTER COLUMN id DROP DEFAULT;
+ALTER TABLE IF EXISTS public.rfid_cards ALTER COLUMN id DROP DEFAULT;
+ALTER TABLE IF EXISTS public.projects ALTER COLUMN id DROP DEFAULT;
+ALTER TABLE IF EXISTS public.materials ALTER COLUMN id DROP DEFAULT;
+ALTER TABLE IF EXISTS public.material_transactions ALTER COLUMN id DROP DEFAULT;
+ALTER TABLE IF EXISTS public.labours ALTER COLUMN id DROP DEFAULT;
+ALTER TABLE IF EXISTS public.labour_tokens ALTER COLUMN id DROP DEFAULT;
+ALTER TABLE IF EXISTS public.labour_manifests ALTER COLUMN id DROP DEFAULT;
+ALTER TABLE IF EXISTS public.hosts ALTER COLUMN id DROP DEFAULT;
+ALTER TABLE IF EXISTS public.host_projects ALTER COLUMN id DROP DEFAULT;
+ALTER TABLE IF EXISTS public.gates ALTER COLUMN id DROP DEFAULT;
+ALTER TABLE IF EXISTS public.gate_health_logs ALTER COLUMN id DROP DEFAULT;
+ALTER TABLE IF EXISTS public.entrances ALTER COLUMN id DROP DEFAULT;
+ALTER TABLE IF EXISTS public.departments ALTER COLUMN id DROP DEFAULT;
+ALTER TABLE IF EXISTS public.card_reissue_log ALTER COLUMN id DROP DEFAULT;
+ALTER TABLE IF EXISTS public.blacklist ALTER COLUMN id DROP DEFAULT;
+ALTER TABLE IF EXISTS public.biometric_match_audit ALTER COLUMN id DROP DEFAULT;
+ALTER TABLE IF EXISTS public.biometric_data ALTER COLUMN id DROP DEFAULT;
+ALTER TABLE IF EXISTS public.access_logs ALTER COLUMN id DROP DEFAULT;
+DROP SEQUENCE IF EXISTS public.visitors_id_seq;
+DROP TABLE IF EXISTS public.visitors;
+DROP SEQUENCE IF EXISTS public.visitor_types_id_seq;
+DROP TABLE IF EXISTS public.visitor_types;
+DROP SEQUENCE IF EXISTS public.visitor_status_audit_id_seq;
+DROP TABLE IF EXISTS public.visitor_status_audit;
+DROP SEQUENCE IF EXISTS public.visitor_gate_permissions_id_seq;
+DROP TABLE IF EXISTS public.visitor_gate_permissions;
+DROP SEQUENCE IF EXISTS public.visitor_documents_id_seq;
+DROP TABLE IF EXISTS public.visitor_documents;
+DROP SEQUENCE IF EXISTS public.users_id_seq;
+DROP TABLE IF EXISTS public.users;
+DROP SEQUENCE IF EXISTS public.sync_queue_id_seq;
+DROP TABLE IF EXISTS public.sync_queue;
+DROP SEQUENCE IF EXISTS public.sms_logs_id_seq;
+DROP TABLE IF EXISTS public.sms_logs;
+DROP SEQUENCE IF EXISTS public.roles_id_seq;
+DROP TABLE IF EXISTS public.roles;
+DROP SEQUENCE IF EXISTS public.rfid_stock_id_seq;
+DROP TABLE IF EXISTS public.rfid_stock;
+DROP SEQUENCE IF EXISTS public.rfid_cards_stock_id_seq;
+DROP TABLE IF EXISTS public.rfid_cards_stock;
+DROP SEQUENCE IF EXISTS public.rfid_cards_id_seq;
+DROP TABLE IF EXISTS public.rfid_cards;
+DROP SEQUENCE IF EXISTS public.projects_id_seq;
+DROP TABLE IF EXISTS public.projects;
+DROP SEQUENCE IF EXISTS public.materials_id_seq;
+DROP TABLE IF EXISTS public.materials;
+DROP SEQUENCE IF EXISTS public.material_transactions_id_seq;
+DROP TABLE IF EXISTS public.material_transactions;
+DROP TABLE IF EXISTS public.manifest_labours;
+DROP SEQUENCE IF EXISTS public.labours_id_seq;
+DROP TABLE IF EXISTS public.labours;
+DROP SEQUENCE IF EXISTS public.labour_tokens_id_seq;
+DROP TABLE IF EXISTS public.labour_tokens;
+DROP SEQUENCE IF EXISTS public.labour_manifests_id_seq;
+DROP TABLE IF EXISTS public.labour_manifests;
+DROP SEQUENCE IF EXISTS public.hosts_id_seq;
+DROP TABLE IF EXISTS public.hosts;
+DROP SEQUENCE IF EXISTS public.host_projects_id_seq;
+DROP TABLE IF EXISTS public.host_projects;
+DROP SEQUENCE IF EXISTS public.gates_id_seq;
+DROP TABLE IF EXISTS public.gates;
+DROP SEQUENCE IF EXISTS public.gate_health_logs_id_seq;
+DROP TABLE IF EXISTS public.gate_health_logs;
+DROP TABLE IF EXISTS public.gate_health;
+DROP SEQUENCE IF EXISTS public.entrances_id_seq;
+DROP TABLE IF EXISTS public.entrances;
+DROP SEQUENCE IF EXISTS public.departments_id_seq;
+DROP TABLE IF EXISTS public.departments;
+DROP SEQUENCE IF EXISTS public.card_reissue_log_id_seq;
+DROP TABLE IF EXISTS public.card_reissue_log;
+DROP SEQUENCE IF EXISTS public.blacklist_id_seq;
+DROP TABLE IF EXISTS public.blacklist;
+DROP SEQUENCE IF EXISTS public.biometric_match_audit_id_seq;
+DROP TABLE IF EXISTS public.biometric_match_audit;
+DROP SEQUENCE IF EXISTS public.biometric_data_id_seq;
+DROP TABLE IF EXISTS public.biometric_data;
+DROP TABLE IF EXISTS public.access_logs_default;
+DROP SEQUENCE IF EXISTS public.access_logs_id_seq;
+DROP TABLE IF EXISTS public.access_logs;
+DROP FUNCTION IF EXISTS public.validate_host_project_department();
 --
--- Name: validate_host_project_department(); Type: FUNCTION; Schema: public; Owner: svr_user
+-- Name: validate_host_project_department(); Type: FUNCTION; Schema: public; Owner: -
 --
 
 CREATE FUNCTION public.validate_host_project_department() RETURNS trigger
@@ -42,12 +220,10 @@ END;
 $$;
 
 
-ALTER FUNCTION public.validate_host_project_department() OWNER TO svr_user;
-
 SET default_tablespace = '';
 
 --
--- Name: access_logs; Type: TABLE; Schema: public; Owner: svr_user
+-- Name: access_logs; Type: TABLE; Schema: public; Owner: -
 --
 
 CREATE TABLE public.access_logs (
@@ -65,10 +241,8 @@ CREATE TABLE public.access_logs (
 PARTITION BY RANGE (scan_time);
 
 
-ALTER TABLE public.access_logs OWNER TO svr_user;
-
 --
--- Name: access_logs_id_seq; Type: SEQUENCE; Schema: public; Owner: svr_user
+-- Name: access_logs_id_seq; Type: SEQUENCE; Schema: public; Owner: -
 --
 
 CREATE SEQUENCE public.access_logs_id_seq
@@ -79,10 +253,8 @@ CREATE SEQUENCE public.access_logs_id_seq
     CACHE 1;
 
 
-ALTER SEQUENCE public.access_logs_id_seq OWNER TO svr_user;
-
 --
--- Name: access_logs_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: svr_user
+-- Name: access_logs_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
 --
 
 ALTER SEQUENCE public.access_logs_id_seq OWNED BY public.access_logs.id;
@@ -91,7 +263,7 @@ ALTER SEQUENCE public.access_logs_id_seq OWNED BY public.access_logs.id;
 SET default_table_access_method = heap;
 
 --
--- Name: access_logs_default; Type: TABLE; Schema: public; Owner: svr_user
+-- Name: access_logs_default; Type: TABLE; Schema: public; Owner: -
 --
 
 CREATE TABLE public.access_logs_default (
@@ -108,10 +280,8 @@ CREATE TABLE public.access_logs_default (
 );
 
 
-ALTER TABLE public.access_logs_default OWNER TO svr_user;
-
 --
--- Name: biometric_data; Type: TABLE; Schema: public; Owner: svr_user
+-- Name: biometric_data; Type: TABLE; Schema: public; Owner: -
 --
 
 CREATE TABLE public.biometric_data (
@@ -123,10 +293,8 @@ CREATE TABLE public.biometric_data (
 );
 
 
-ALTER TABLE public.biometric_data OWNER TO svr_user;
-
 --
--- Name: biometric_data_id_seq; Type: SEQUENCE; Schema: public; Owner: svr_user
+-- Name: biometric_data_id_seq; Type: SEQUENCE; Schema: public; Owner: -
 --
 
 CREATE SEQUENCE public.biometric_data_id_seq
@@ -137,17 +305,15 @@ CREATE SEQUENCE public.biometric_data_id_seq
     CACHE 1;
 
 
-ALTER SEQUENCE public.biometric_data_id_seq OWNER TO svr_user;
-
 --
--- Name: biometric_data_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: svr_user
+-- Name: biometric_data_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
 --
 
 ALTER SEQUENCE public.biometric_data_id_seq OWNED BY public.biometric_data.id;
 
 
 --
--- Name: biometric_match_audit; Type: TABLE; Schema: public; Owner: svr_user
+-- Name: biometric_match_audit; Type: TABLE; Schema: public; Owner: -
 --
 
 CREATE TABLE public.biometric_match_audit (
@@ -161,10 +327,8 @@ CREATE TABLE public.biometric_match_audit (
 );
 
 
-ALTER TABLE public.biometric_match_audit OWNER TO svr_user;
-
 --
--- Name: biometric_match_audit_id_seq; Type: SEQUENCE; Schema: public; Owner: svr_user
+-- Name: biometric_match_audit_id_seq; Type: SEQUENCE; Schema: public; Owner: -
 --
 
 CREATE SEQUENCE public.biometric_match_audit_id_seq
@@ -175,17 +339,15 @@ CREATE SEQUENCE public.biometric_match_audit_id_seq
     CACHE 1;
 
 
-ALTER SEQUENCE public.biometric_match_audit_id_seq OWNER TO svr_user;
-
 --
--- Name: biometric_match_audit_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: svr_user
+-- Name: biometric_match_audit_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
 --
 
 ALTER SEQUENCE public.biometric_match_audit_id_seq OWNED BY public.biometric_match_audit.id;
 
 
 --
--- Name: blacklist; Type: TABLE; Schema: public; Owner: svr_user
+-- Name: blacklist; Type: TABLE; Schema: public; Owner: -
 --
 
 CREATE TABLE public.blacklist (
@@ -199,10 +361,8 @@ CREATE TABLE public.blacklist (
 );
 
 
-ALTER TABLE public.blacklist OWNER TO svr_user;
-
 --
--- Name: blacklist_id_seq; Type: SEQUENCE; Schema: public; Owner: svr_user
+-- Name: blacklist_id_seq; Type: SEQUENCE; Schema: public; Owner: -
 --
 
 CREATE SEQUENCE public.blacklist_id_seq
@@ -214,17 +374,15 @@ CREATE SEQUENCE public.blacklist_id_seq
     CACHE 1;
 
 
-ALTER SEQUENCE public.blacklist_id_seq OWNER TO svr_user;
-
 --
--- Name: blacklist_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: svr_user
+-- Name: blacklist_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
 --
 
 ALTER SEQUENCE public.blacklist_id_seq OWNED BY public.blacklist.id;
 
 
 --
--- Name: card_reissue_log; Type: TABLE; Schema: public; Owner: svr_user
+-- Name: card_reissue_log; Type: TABLE; Schema: public; Owner: -
 --
 
 CREATE TABLE public.card_reissue_log (
@@ -238,10 +396,8 @@ CREATE TABLE public.card_reissue_log (
 );
 
 
-ALTER TABLE public.card_reissue_log OWNER TO svr_user;
-
 --
--- Name: card_reissue_log_id_seq; Type: SEQUENCE; Schema: public; Owner: svr_user
+-- Name: card_reissue_log_id_seq; Type: SEQUENCE; Schema: public; Owner: -
 --
 
 CREATE SEQUENCE public.card_reissue_log_id_seq
@@ -252,17 +408,15 @@ CREATE SEQUENCE public.card_reissue_log_id_seq
     CACHE 1;
 
 
-ALTER SEQUENCE public.card_reissue_log_id_seq OWNER TO svr_user;
-
 --
--- Name: card_reissue_log_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: svr_user
+-- Name: card_reissue_log_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
 --
 
 ALTER SEQUENCE public.card_reissue_log_id_seq OWNED BY public.card_reissue_log.id;
 
 
 --
--- Name: departments; Type: TABLE; Schema: public; Owner: svr_user
+-- Name: departments; Type: TABLE; Schema: public; Owner: -
 --
 
 CREATE TABLE public.departments (
@@ -273,10 +427,8 @@ CREATE TABLE public.departments (
 );
 
 
-ALTER TABLE public.departments OWNER TO svr_user;
-
 --
--- Name: departments_id_seq; Type: SEQUENCE; Schema: public; Owner: svr_user
+-- Name: departments_id_seq; Type: SEQUENCE; Schema: public; Owner: -
 --
 
 CREATE SEQUENCE public.departments_id_seq
@@ -288,17 +440,15 @@ CREATE SEQUENCE public.departments_id_seq
     CACHE 1;
 
 
-ALTER SEQUENCE public.departments_id_seq OWNER TO svr_user;
-
 --
--- Name: departments_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: svr_user
+-- Name: departments_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
 --
 
 ALTER SEQUENCE public.departments_id_seq OWNED BY public.departments.id;
 
 
 --
--- Name: entrances; Type: TABLE; Schema: public; Owner: svr_user
+-- Name: entrances; Type: TABLE; Schema: public; Owner: -
 --
 
 CREATE TABLE public.entrances (
@@ -309,10 +459,8 @@ CREATE TABLE public.entrances (
 );
 
 
-ALTER TABLE public.entrances OWNER TO svr_user;
-
 --
--- Name: entrances_id_seq; Type: SEQUENCE; Schema: public; Owner: svr_user
+-- Name: entrances_id_seq; Type: SEQUENCE; Schema: public; Owner: -
 --
 
 CREATE SEQUENCE public.entrances_id_seq
@@ -324,17 +472,15 @@ CREATE SEQUENCE public.entrances_id_seq
     CACHE 1;
 
 
-ALTER SEQUENCE public.entrances_id_seq OWNER TO svr_user;
-
 --
--- Name: entrances_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: svr_user
+-- Name: entrances_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
 --
 
 ALTER SEQUENCE public.entrances_id_seq OWNED BY public.entrances.id;
 
 
 --
--- Name: gate_health; Type: TABLE; Schema: public; Owner: svr_user
+-- Name: gate_health; Type: TABLE; Schema: public; Owner: -
 --
 
 CREATE TABLE public.gate_health (
@@ -351,10 +497,8 @@ CREATE TABLE public.gate_health (
 );
 
 
-ALTER TABLE public.gate_health OWNER TO svr_user;
-
 --
--- Name: gate_health_logs; Type: TABLE; Schema: public; Owner: svr_user
+-- Name: gate_health_logs; Type: TABLE; Schema: public; Owner: -
 --
 
 CREATE TABLE public.gate_health_logs (
@@ -370,10 +514,8 @@ CREATE TABLE public.gate_health_logs (
 );
 
 
-ALTER TABLE public.gate_health_logs OWNER TO svr_user;
-
 --
--- Name: gate_health_logs_id_seq; Type: SEQUENCE; Schema: public; Owner: svr_user
+-- Name: gate_health_logs_id_seq; Type: SEQUENCE; Schema: public; Owner: -
 --
 
 CREATE SEQUENCE public.gate_health_logs_id_seq
@@ -384,17 +526,15 @@ CREATE SEQUENCE public.gate_health_logs_id_seq
     CACHE 1;
 
 
-ALTER SEQUENCE public.gate_health_logs_id_seq OWNER TO svr_user;
-
 --
--- Name: gate_health_logs_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: svr_user
+-- Name: gate_health_logs_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
 --
 
 ALTER SEQUENCE public.gate_health_logs_id_seq OWNED BY public.gate_health_logs.id;
 
 
 --
--- Name: gates; Type: TABLE; Schema: public; Owner: svr_user
+-- Name: gates; Type: TABLE; Schema: public; Owner: -
 --
 
 CREATE TABLE public.gates (
@@ -407,10 +547,8 @@ CREATE TABLE public.gates (
 );
 
 
-ALTER TABLE public.gates OWNER TO svr_user;
-
 --
--- Name: gates_id_seq; Type: SEQUENCE; Schema: public; Owner: svr_user
+-- Name: gates_id_seq; Type: SEQUENCE; Schema: public; Owner: -
 --
 
 CREATE SEQUENCE public.gates_id_seq
@@ -422,17 +560,15 @@ CREATE SEQUENCE public.gates_id_seq
     CACHE 1;
 
 
-ALTER SEQUENCE public.gates_id_seq OWNER TO svr_user;
-
 --
--- Name: gates_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: svr_user
+-- Name: gates_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
 --
 
 ALTER SEQUENCE public.gates_id_seq OWNED BY public.gates.id;
 
 
 --
--- Name: host_projects; Type: TABLE; Schema: public; Owner: svr_user
+-- Name: host_projects; Type: TABLE; Schema: public; Owner: -
 --
 
 CREATE TABLE public.host_projects (
@@ -443,10 +579,8 @@ CREATE TABLE public.host_projects (
 );
 
 
-ALTER TABLE public.host_projects OWNER TO svr_user;
-
 --
--- Name: host_projects_id_seq; Type: SEQUENCE; Schema: public; Owner: svr_user
+-- Name: host_projects_id_seq; Type: SEQUENCE; Schema: public; Owner: -
 --
 
 CREATE SEQUENCE public.host_projects_id_seq
@@ -458,17 +592,15 @@ CREATE SEQUENCE public.host_projects_id_seq
     CACHE 1;
 
 
-ALTER SEQUENCE public.host_projects_id_seq OWNER TO svr_user;
-
 --
--- Name: host_projects_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: svr_user
+-- Name: host_projects_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
 --
 
 ALTER SEQUENCE public.host_projects_id_seq OWNED BY public.host_projects.id;
 
 
 --
--- Name: hosts; Type: TABLE; Schema: public; Owner: svr_user
+-- Name: hosts; Type: TABLE; Schema: public; Owner: -
 --
 
 CREATE TABLE public.hosts (
@@ -482,10 +614,8 @@ CREATE TABLE public.hosts (
 );
 
 
-ALTER TABLE public.hosts OWNER TO svr_user;
-
 --
--- Name: hosts_id_seq; Type: SEQUENCE; Schema: public; Owner: svr_user
+-- Name: hosts_id_seq; Type: SEQUENCE; Schema: public; Owner: -
 --
 
 CREATE SEQUENCE public.hosts_id_seq
@@ -497,17 +627,15 @@ CREATE SEQUENCE public.hosts_id_seq
     CACHE 1;
 
 
-ALTER SEQUENCE public.hosts_id_seq OWNER TO svr_user;
-
 --
--- Name: hosts_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: svr_user
+-- Name: hosts_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
 --
 
 ALTER SEQUENCE public.hosts_id_seq OWNED BY public.hosts.id;
 
 
 --
--- Name: labour_manifests; Type: TABLE; Schema: public; Owner: svr_user
+-- Name: labour_manifests; Type: TABLE; Schema: public; Owner: -
 --
 
 CREATE TABLE public.labour_manifests (
@@ -520,10 +648,8 @@ CREATE TABLE public.labour_manifests (
 );
 
 
-ALTER TABLE public.labour_manifests OWNER TO svr_user;
-
 --
--- Name: labour_manifests_id_seq; Type: SEQUENCE; Schema: public; Owner: svr_user
+-- Name: labour_manifests_id_seq; Type: SEQUENCE; Schema: public; Owner: -
 --
 
 CREATE SEQUENCE public.labour_manifests_id_seq
@@ -534,17 +660,15 @@ CREATE SEQUENCE public.labour_manifests_id_seq
     CACHE 1;
 
 
-ALTER SEQUENCE public.labour_manifests_id_seq OWNER TO svr_user;
-
 --
--- Name: labour_manifests_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: svr_user
+-- Name: labour_manifests_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
 --
 
 ALTER SEQUENCE public.labour_manifests_id_seq OWNED BY public.labour_manifests.id;
 
 
 --
--- Name: labour_tokens; Type: TABLE; Schema: public; Owner: svr_user
+-- Name: labour_tokens; Type: TABLE; Schema: public; Owner: -
 --
 
 CREATE TABLE public.labour_tokens (
@@ -557,10 +681,8 @@ CREATE TABLE public.labour_tokens (
 );
 
 
-ALTER TABLE public.labour_tokens OWNER TO svr_user;
-
 --
--- Name: labour_tokens_id_seq; Type: SEQUENCE; Schema: public; Owner: svr_user
+-- Name: labour_tokens_id_seq; Type: SEQUENCE; Schema: public; Owner: -
 --
 
 CREATE SEQUENCE public.labour_tokens_id_seq
@@ -571,17 +693,15 @@ CREATE SEQUENCE public.labour_tokens_id_seq
     CACHE 1;
 
 
-ALTER SEQUENCE public.labour_tokens_id_seq OWNER TO svr_user;
-
 --
--- Name: labour_tokens_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: svr_user
+-- Name: labour_tokens_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
 --
 
 ALTER SEQUENCE public.labour_tokens_id_seq OWNED BY public.labour_tokens.id;
 
 
 --
--- Name: labours; Type: TABLE; Schema: public; Owner: svr_user
+-- Name: labours; Type: TABLE; Schema: public; Owner: -
 --
 
 CREATE TABLE public.labours (
@@ -597,10 +717,8 @@ CREATE TABLE public.labours (
 );
 
 
-ALTER TABLE public.labours OWNER TO svr_user;
-
 --
--- Name: labours_id_seq; Type: SEQUENCE; Schema: public; Owner: svr_user
+-- Name: labours_id_seq; Type: SEQUENCE; Schema: public; Owner: -
 --
 
 CREATE SEQUENCE public.labours_id_seq
@@ -611,17 +729,15 @@ CREATE SEQUENCE public.labours_id_seq
     CACHE 1;
 
 
-ALTER SEQUENCE public.labours_id_seq OWNER TO svr_user;
-
 --
--- Name: labours_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: svr_user
+-- Name: labours_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
 --
 
 ALTER SEQUENCE public.labours_id_seq OWNED BY public.labours.id;
 
 
 --
--- Name: manifest_labours; Type: TABLE; Schema: public; Owner: svr_user
+-- Name: manifest_labours; Type: TABLE; Schema: public; Owner: -
 --
 
 CREATE TABLE public.manifest_labours (
@@ -630,10 +746,8 @@ CREATE TABLE public.manifest_labours (
 );
 
 
-ALTER TABLE public.manifest_labours OWNER TO svr_user;
-
 --
--- Name: material_transactions; Type: TABLE; Schema: public; Owner: svr_user
+-- Name: material_transactions; Type: TABLE; Schema: public; Owner: -
 --
 
 CREATE TABLE public.material_transactions (
@@ -646,10 +760,8 @@ CREATE TABLE public.material_transactions (
 );
 
 
-ALTER TABLE public.material_transactions OWNER TO svr_user;
-
 --
--- Name: material_transactions_id_seq; Type: SEQUENCE; Schema: public; Owner: svr_user
+-- Name: material_transactions_id_seq; Type: SEQUENCE; Schema: public; Owner: -
 --
 
 CREATE SEQUENCE public.material_transactions_id_seq
@@ -660,17 +772,15 @@ CREATE SEQUENCE public.material_transactions_id_seq
     CACHE 1;
 
 
-ALTER SEQUENCE public.material_transactions_id_seq OWNER TO svr_user;
-
 --
--- Name: material_transactions_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: svr_user
+-- Name: material_transactions_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
 --
 
 ALTER SEQUENCE public.material_transactions_id_seq OWNED BY public.material_transactions.id;
 
 
 --
--- Name: materials; Type: TABLE; Schema: public; Owner: svr_user
+-- Name: materials; Type: TABLE; Schema: public; Owner: -
 --
 
 CREATE TABLE public.materials (
@@ -683,10 +793,8 @@ CREATE TABLE public.materials (
 );
 
 
-ALTER TABLE public.materials OWNER TO svr_user;
-
 --
--- Name: materials_id_seq; Type: SEQUENCE; Schema: public; Owner: svr_user
+-- Name: materials_id_seq; Type: SEQUENCE; Schema: public; Owner: -
 --
 
 CREATE SEQUENCE public.materials_id_seq
@@ -698,17 +806,15 @@ CREATE SEQUENCE public.materials_id_seq
     CACHE 1;
 
 
-ALTER SEQUENCE public.materials_id_seq OWNER TO svr_user;
-
 --
--- Name: materials_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: svr_user
+-- Name: materials_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
 --
 
 ALTER SEQUENCE public.materials_id_seq OWNED BY public.materials.id;
 
 
 --
--- Name: projects; Type: TABLE; Schema: public; Owner: svr_user
+-- Name: projects; Type: TABLE; Schema: public; Owner: -
 --
 
 CREATE TABLE public.projects (
@@ -720,10 +826,8 @@ CREATE TABLE public.projects (
 );
 
 
-ALTER TABLE public.projects OWNER TO svr_user;
-
 --
--- Name: projects_id_seq; Type: SEQUENCE; Schema: public; Owner: svr_user
+-- Name: projects_id_seq; Type: SEQUENCE; Schema: public; Owner: -
 --
 
 CREATE SEQUENCE public.projects_id_seq
@@ -735,17 +839,15 @@ CREATE SEQUENCE public.projects_id_seq
     CACHE 1;
 
 
-ALTER SEQUENCE public.projects_id_seq OWNER TO svr_user;
-
 --
--- Name: projects_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: svr_user
+-- Name: projects_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
 --
 
 ALTER SEQUENCE public.projects_id_seq OWNED BY public.projects.id;
 
 
 --
--- Name: rfid_cards; Type: TABLE; Schema: public; Owner: svr_user
+-- Name: rfid_cards; Type: TABLE; Schema: public; Owner: -
 --
 
 CREATE TABLE public.rfid_cards (
@@ -761,10 +863,8 @@ CREATE TABLE public.rfid_cards (
 );
 
 
-ALTER TABLE public.rfid_cards OWNER TO svr_user;
-
 --
--- Name: rfid_cards_id_seq; Type: SEQUENCE; Schema: public; Owner: svr_user
+-- Name: rfid_cards_id_seq; Type: SEQUENCE; Schema: public; Owner: -
 --
 
 CREATE SEQUENCE public.rfid_cards_id_seq
@@ -775,17 +875,15 @@ CREATE SEQUENCE public.rfid_cards_id_seq
     CACHE 1;
 
 
-ALTER SEQUENCE public.rfid_cards_id_seq OWNER TO svr_user;
-
 --
--- Name: rfid_cards_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: svr_user
+-- Name: rfid_cards_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
 --
 
 ALTER SEQUENCE public.rfid_cards_id_seq OWNED BY public.rfid_cards.id;
 
 
 --
--- Name: rfid_cards_stock; Type: TABLE; Schema: public; Owner: svr_user
+-- Name: rfid_cards_stock; Type: TABLE; Schema: public; Owner: -
 --
 
 CREATE TABLE public.rfid_cards_stock (
@@ -798,10 +896,8 @@ CREATE TABLE public.rfid_cards_stock (
 );
 
 
-ALTER TABLE public.rfid_cards_stock OWNER TO svr_user;
-
 --
--- Name: rfid_cards_stock_id_seq; Type: SEQUENCE; Schema: public; Owner: svr_user
+-- Name: rfid_cards_stock_id_seq; Type: SEQUENCE; Schema: public; Owner: -
 --
 
 CREATE SEQUENCE public.rfid_cards_stock_id_seq
@@ -812,17 +908,15 @@ CREATE SEQUENCE public.rfid_cards_stock_id_seq
     CACHE 1;
 
 
-ALTER SEQUENCE public.rfid_cards_stock_id_seq OWNER TO svr_user;
-
 --
--- Name: rfid_cards_stock_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: svr_user
+-- Name: rfid_cards_stock_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
 --
 
 ALTER SEQUENCE public.rfid_cards_stock_id_seq OWNED BY public.rfid_cards_stock.id;
 
 
 --
--- Name: rfid_stock; Type: TABLE; Schema: public; Owner: svr_user
+-- Name: rfid_stock; Type: TABLE; Schema: public; Owner: -
 --
 
 CREATE TABLE public.rfid_stock (
@@ -835,10 +929,8 @@ CREATE TABLE public.rfid_stock (
 );
 
 
-ALTER TABLE public.rfid_stock OWNER TO svr_user;
-
 --
--- Name: rfid_stock_id_seq; Type: SEQUENCE; Schema: public; Owner: svr_user
+-- Name: rfid_stock_id_seq; Type: SEQUENCE; Schema: public; Owner: -
 --
 
 CREATE SEQUENCE public.rfid_stock_id_seq
@@ -849,17 +941,15 @@ CREATE SEQUENCE public.rfid_stock_id_seq
     CACHE 1;
 
 
-ALTER SEQUENCE public.rfid_stock_id_seq OWNER TO svr_user;
-
 --
--- Name: rfid_stock_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: svr_user
+-- Name: rfid_stock_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
 --
 
 ALTER SEQUENCE public.rfid_stock_id_seq OWNED BY public.rfid_stock.id;
 
 
 --
--- Name: roles; Type: TABLE; Schema: public; Owner: svr_user
+-- Name: roles; Type: TABLE; Schema: public; Owner: -
 --
 
 CREATE TABLE public.roles (
@@ -871,10 +961,8 @@ CREATE TABLE public.roles (
 );
 
 
-ALTER TABLE public.roles OWNER TO svr_user;
-
 --
--- Name: roles_id_seq; Type: SEQUENCE; Schema: public; Owner: svr_user
+-- Name: roles_id_seq; Type: SEQUENCE; Schema: public; Owner: -
 --
 
 CREATE SEQUENCE public.roles_id_seq
@@ -886,17 +974,15 @@ CREATE SEQUENCE public.roles_id_seq
     CACHE 1;
 
 
-ALTER SEQUENCE public.roles_id_seq OWNER TO svr_user;
-
 --
--- Name: roles_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: svr_user
+-- Name: roles_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
 --
 
 ALTER SEQUENCE public.roles_id_seq OWNED BY public.roles.id;
 
 
 --
--- Name: sms_logs; Type: TABLE; Schema: public; Owner: svr_user
+-- Name: sms_logs; Type: TABLE; Schema: public; Owner: -
 --
 
 CREATE TABLE public.sms_logs (
@@ -915,10 +1001,8 @@ CREATE TABLE public.sms_logs (
 );
 
 
-ALTER TABLE public.sms_logs OWNER TO svr_user;
-
 --
--- Name: sms_logs_id_seq; Type: SEQUENCE; Schema: public; Owner: svr_user
+-- Name: sms_logs_id_seq; Type: SEQUENCE; Schema: public; Owner: -
 --
 
 CREATE SEQUENCE public.sms_logs_id_seq
@@ -930,17 +1014,15 @@ CREATE SEQUENCE public.sms_logs_id_seq
     CACHE 1;
 
 
-ALTER SEQUENCE public.sms_logs_id_seq OWNER TO svr_user;
-
 --
--- Name: sms_logs_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: svr_user
+-- Name: sms_logs_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
 --
 
 ALTER SEQUENCE public.sms_logs_id_seq OWNED BY public.sms_logs.id;
 
 
 --
--- Name: sync_queue; Type: TABLE; Schema: public; Owner: svr_user
+-- Name: sync_queue; Type: TABLE; Schema: public; Owner: -
 --
 
 CREATE TABLE public.sync_queue (
@@ -952,10 +1034,8 @@ CREATE TABLE public.sync_queue (
 );
 
 
-ALTER TABLE public.sync_queue OWNER TO svr_user;
-
 --
--- Name: sync_queue_id_seq; Type: SEQUENCE; Schema: public; Owner: svr_user
+-- Name: sync_queue_id_seq; Type: SEQUENCE; Schema: public; Owner: -
 --
 
 CREATE SEQUENCE public.sync_queue_id_seq
@@ -966,17 +1046,15 @@ CREATE SEQUENCE public.sync_queue_id_seq
     CACHE 1;
 
 
-ALTER SEQUENCE public.sync_queue_id_seq OWNER TO svr_user;
-
 --
--- Name: sync_queue_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: svr_user
+-- Name: sync_queue_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
 --
 
 ALTER SEQUENCE public.sync_queue_id_seq OWNED BY public.sync_queue.id;
 
 
 --
--- Name: users; Type: TABLE; Schema: public; Owner: svr_user
+-- Name: users; Type: TABLE; Schema: public; Owner: -
 --
 
 CREATE TABLE public.users (
@@ -991,10 +1069,8 @@ CREATE TABLE public.users (
 );
 
 
-ALTER TABLE public.users OWNER TO svr_user;
-
 --
--- Name: users_id_seq; Type: SEQUENCE; Schema: public; Owner: svr_user
+-- Name: users_id_seq; Type: SEQUENCE; Schema: public; Owner: -
 --
 
 CREATE SEQUENCE public.users_id_seq
@@ -1006,17 +1082,15 @@ CREATE SEQUENCE public.users_id_seq
     CACHE 1;
 
 
-ALTER SEQUENCE public.users_id_seq OWNER TO svr_user;
-
 --
--- Name: users_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: svr_user
+-- Name: users_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
 --
 
 ALTER SEQUENCE public.users_id_seq OWNED BY public.users.id;
 
 
 --
--- Name: visitor_documents; Type: TABLE; Schema: public; Owner: svr_user
+-- Name: visitor_documents; Type: TABLE; Schema: public; Owner: -
 --
 
 CREATE TABLE public.visitor_documents (
@@ -1030,10 +1104,8 @@ CREATE TABLE public.visitor_documents (
 );
 
 
-ALTER TABLE public.visitor_documents OWNER TO svr_user;
-
 --
--- Name: visitor_documents_id_seq; Type: SEQUENCE; Schema: public; Owner: svr_user
+-- Name: visitor_documents_id_seq; Type: SEQUENCE; Schema: public; Owner: -
 --
 
 CREATE SEQUENCE public.visitor_documents_id_seq
@@ -1044,17 +1116,15 @@ CREATE SEQUENCE public.visitor_documents_id_seq
     CACHE 1;
 
 
-ALTER SEQUENCE public.visitor_documents_id_seq OWNER TO svr_user;
-
 --
--- Name: visitor_documents_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: svr_user
+-- Name: visitor_documents_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
 --
 
 ALTER SEQUENCE public.visitor_documents_id_seq OWNED BY public.visitor_documents.id;
 
 
 --
--- Name: visitor_gate_permissions; Type: TABLE; Schema: public; Owner: svr_user
+-- Name: visitor_gate_permissions; Type: TABLE; Schema: public; Owner: -
 --
 
 CREATE TABLE public.visitor_gate_permissions (
@@ -1067,10 +1137,8 @@ CREATE TABLE public.visitor_gate_permissions (
 );
 
 
-ALTER TABLE public.visitor_gate_permissions OWNER TO svr_user;
-
 --
--- Name: visitor_gate_permissions_id_seq; Type: SEQUENCE; Schema: public; Owner: svr_user
+-- Name: visitor_gate_permissions_id_seq; Type: SEQUENCE; Schema: public; Owner: -
 --
 
 CREATE SEQUENCE public.visitor_gate_permissions_id_seq
@@ -1082,17 +1150,15 @@ CREATE SEQUENCE public.visitor_gate_permissions_id_seq
     CACHE 1;
 
 
-ALTER SEQUENCE public.visitor_gate_permissions_id_seq OWNER TO svr_user;
-
 --
--- Name: visitor_gate_permissions_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: svr_user
+-- Name: visitor_gate_permissions_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
 --
 
 ALTER SEQUENCE public.visitor_gate_permissions_id_seq OWNED BY public.visitor_gate_permissions.id;
 
 
 --
--- Name: visitor_status_audit; Type: TABLE; Schema: public; Owner: svr_user
+-- Name: visitor_status_audit; Type: TABLE; Schema: public; Owner: -
 --
 
 CREATE TABLE public.visitor_status_audit (
@@ -1106,10 +1172,8 @@ CREATE TABLE public.visitor_status_audit (
 );
 
 
-ALTER TABLE public.visitor_status_audit OWNER TO svr_user;
-
 --
--- Name: visitor_status_audit_id_seq; Type: SEQUENCE; Schema: public; Owner: svr_user
+-- Name: visitor_status_audit_id_seq; Type: SEQUENCE; Schema: public; Owner: -
 --
 
 CREATE SEQUENCE public.visitor_status_audit_id_seq
@@ -1120,17 +1184,15 @@ CREATE SEQUENCE public.visitor_status_audit_id_seq
     CACHE 1;
 
 
-ALTER SEQUENCE public.visitor_status_audit_id_seq OWNER TO svr_user;
-
 --
--- Name: visitor_status_audit_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: svr_user
+-- Name: visitor_status_audit_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
 --
 
 ALTER SEQUENCE public.visitor_status_audit_id_seq OWNED BY public.visitor_status_audit.id;
 
 
 --
--- Name: visitor_types; Type: TABLE; Schema: public; Owner: svr_user
+-- Name: visitor_types; Type: TABLE; Schema: public; Owner: -
 --
 
 CREATE TABLE public.visitor_types (
@@ -1141,10 +1203,8 @@ CREATE TABLE public.visitor_types (
 );
 
 
-ALTER TABLE public.visitor_types OWNER TO svr_user;
-
 --
--- Name: visitor_types_id_seq; Type: SEQUENCE; Schema: public; Owner: svr_user
+-- Name: visitor_types_id_seq; Type: SEQUENCE; Schema: public; Owner: -
 --
 
 CREATE SEQUENCE public.visitor_types_id_seq
@@ -1156,17 +1216,15 @@ CREATE SEQUENCE public.visitor_types_id_seq
     CACHE 1;
 
 
-ALTER SEQUENCE public.visitor_types_id_seq OWNER TO svr_user;
-
 --
--- Name: visitor_types_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: svr_user
+-- Name: visitor_types_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
 --
 
 ALTER SEQUENCE public.visitor_types_id_seq OWNED BY public.visitor_types.id;
 
 
 --
--- Name: visitors; Type: TABLE; Schema: public; Owner: svr_user
+-- Name: visitors; Type: TABLE; Schema: public; Owner: -
 --
 
 CREATE TABLE public.visitors (
@@ -1222,10 +1280,8 @@ CREATE TABLE public.visitors (
 );
 
 
-ALTER TABLE public.visitors OWNER TO svr_user;
-
 --
--- Name: visitors_id_seq; Type: SEQUENCE; Schema: public; Owner: svr_user
+-- Name: visitors_id_seq; Type: SEQUENCE; Schema: public; Owner: -
 --
 
 CREATE SEQUENCE public.visitors_id_seq
@@ -1236,227 +1292,225 @@ CREATE SEQUENCE public.visitors_id_seq
     CACHE 1;
 
 
-ALTER SEQUENCE public.visitors_id_seq OWNER TO svr_user;
-
 --
--- Name: visitors_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: svr_user
+-- Name: visitors_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
 --
 
 ALTER SEQUENCE public.visitors_id_seq OWNED BY public.visitors.id;
 
 
 --
--- Name: access_logs_default; Type: TABLE ATTACH; Schema: public; Owner: svr_user
+-- Name: access_logs_default; Type: TABLE ATTACH; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.access_logs ATTACH PARTITION public.access_logs_default DEFAULT;
 
 
 --
--- Name: access_logs id; Type: DEFAULT; Schema: public; Owner: svr_user
+-- Name: access_logs id; Type: DEFAULT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.access_logs ALTER COLUMN id SET DEFAULT nextval('public.access_logs_id_seq'::regclass);
 
 
 --
--- Name: biometric_data id; Type: DEFAULT; Schema: public; Owner: svr_user
+-- Name: biometric_data id; Type: DEFAULT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.biometric_data ALTER COLUMN id SET DEFAULT nextval('public.biometric_data_id_seq'::regclass);
 
 
 --
--- Name: biometric_match_audit id; Type: DEFAULT; Schema: public; Owner: svr_user
+-- Name: biometric_match_audit id; Type: DEFAULT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.biometric_match_audit ALTER COLUMN id SET DEFAULT nextval('public.biometric_match_audit_id_seq'::regclass);
 
 
 --
--- Name: blacklist id; Type: DEFAULT; Schema: public; Owner: svr_user
+-- Name: blacklist id; Type: DEFAULT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.blacklist ALTER COLUMN id SET DEFAULT nextval('public.blacklist_id_seq'::regclass);
 
 
 --
--- Name: card_reissue_log id; Type: DEFAULT; Schema: public; Owner: svr_user
+-- Name: card_reissue_log id; Type: DEFAULT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.card_reissue_log ALTER COLUMN id SET DEFAULT nextval('public.card_reissue_log_id_seq'::regclass);
 
 
 --
--- Name: departments id; Type: DEFAULT; Schema: public; Owner: svr_user
+-- Name: departments id; Type: DEFAULT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.departments ALTER COLUMN id SET DEFAULT nextval('public.departments_id_seq'::regclass);
 
 
 --
--- Name: entrances id; Type: DEFAULT; Schema: public; Owner: svr_user
+-- Name: entrances id; Type: DEFAULT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.entrances ALTER COLUMN id SET DEFAULT nextval('public.entrances_id_seq'::regclass);
 
 
 --
--- Name: gate_health_logs id; Type: DEFAULT; Schema: public; Owner: svr_user
+-- Name: gate_health_logs id; Type: DEFAULT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.gate_health_logs ALTER COLUMN id SET DEFAULT nextval('public.gate_health_logs_id_seq'::regclass);
 
 
 --
--- Name: gates id; Type: DEFAULT; Schema: public; Owner: svr_user
+-- Name: gates id; Type: DEFAULT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.gates ALTER COLUMN id SET DEFAULT nextval('public.gates_id_seq'::regclass);
 
 
 --
--- Name: host_projects id; Type: DEFAULT; Schema: public; Owner: svr_user
+-- Name: host_projects id; Type: DEFAULT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.host_projects ALTER COLUMN id SET DEFAULT nextval('public.host_projects_id_seq'::regclass);
 
 
 --
--- Name: hosts id; Type: DEFAULT; Schema: public; Owner: svr_user
+-- Name: hosts id; Type: DEFAULT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.hosts ALTER COLUMN id SET DEFAULT nextval('public.hosts_id_seq'::regclass);
 
 
 --
--- Name: labour_manifests id; Type: DEFAULT; Schema: public; Owner: svr_user
+-- Name: labour_manifests id; Type: DEFAULT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.labour_manifests ALTER COLUMN id SET DEFAULT nextval('public.labour_manifests_id_seq'::regclass);
 
 
 --
--- Name: labour_tokens id; Type: DEFAULT; Schema: public; Owner: svr_user
+-- Name: labour_tokens id; Type: DEFAULT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.labour_tokens ALTER COLUMN id SET DEFAULT nextval('public.labour_tokens_id_seq'::regclass);
 
 
 --
--- Name: labours id; Type: DEFAULT; Schema: public; Owner: svr_user
+-- Name: labours id; Type: DEFAULT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.labours ALTER COLUMN id SET DEFAULT nextval('public.labours_id_seq'::regclass);
 
 
 --
--- Name: material_transactions id; Type: DEFAULT; Schema: public; Owner: svr_user
+-- Name: material_transactions id; Type: DEFAULT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.material_transactions ALTER COLUMN id SET DEFAULT nextval('public.material_transactions_id_seq'::regclass);
 
 
 --
--- Name: materials id; Type: DEFAULT; Schema: public; Owner: svr_user
+-- Name: materials id; Type: DEFAULT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.materials ALTER COLUMN id SET DEFAULT nextval('public.materials_id_seq'::regclass);
 
 
 --
--- Name: projects id; Type: DEFAULT; Schema: public; Owner: svr_user
+-- Name: projects id; Type: DEFAULT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.projects ALTER COLUMN id SET DEFAULT nextval('public.projects_id_seq'::regclass);
 
 
 --
--- Name: rfid_cards id; Type: DEFAULT; Schema: public; Owner: svr_user
+-- Name: rfid_cards id; Type: DEFAULT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.rfid_cards ALTER COLUMN id SET DEFAULT nextval('public.rfid_cards_id_seq'::regclass);
 
 
 --
--- Name: rfid_cards_stock id; Type: DEFAULT; Schema: public; Owner: svr_user
+-- Name: rfid_cards_stock id; Type: DEFAULT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.rfid_cards_stock ALTER COLUMN id SET DEFAULT nextval('public.rfid_cards_stock_id_seq'::regclass);
 
 
 --
--- Name: rfid_stock id; Type: DEFAULT; Schema: public; Owner: svr_user
+-- Name: rfid_stock id; Type: DEFAULT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.rfid_stock ALTER COLUMN id SET DEFAULT nextval('public.rfid_stock_id_seq'::regclass);
 
 
 --
--- Name: roles id; Type: DEFAULT; Schema: public; Owner: svr_user
+-- Name: roles id; Type: DEFAULT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.roles ALTER COLUMN id SET DEFAULT nextval('public.roles_id_seq'::regclass);
 
 
 --
--- Name: sms_logs id; Type: DEFAULT; Schema: public; Owner: svr_user
+-- Name: sms_logs id; Type: DEFAULT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.sms_logs ALTER COLUMN id SET DEFAULT nextval('public.sms_logs_id_seq'::regclass);
 
 
 --
--- Name: sync_queue id; Type: DEFAULT; Schema: public; Owner: svr_user
+-- Name: sync_queue id; Type: DEFAULT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.sync_queue ALTER COLUMN id SET DEFAULT nextval('public.sync_queue_id_seq'::regclass);
 
 
 --
--- Name: users id; Type: DEFAULT; Schema: public; Owner: svr_user
+-- Name: users id; Type: DEFAULT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.users ALTER COLUMN id SET DEFAULT nextval('public.users_id_seq'::regclass);
 
 
 --
--- Name: visitor_documents id; Type: DEFAULT; Schema: public; Owner: svr_user
+-- Name: visitor_documents id; Type: DEFAULT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.visitor_documents ALTER COLUMN id SET DEFAULT nextval('public.visitor_documents_id_seq'::regclass);
 
 
 --
--- Name: visitor_gate_permissions id; Type: DEFAULT; Schema: public; Owner: svr_user
+-- Name: visitor_gate_permissions id; Type: DEFAULT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.visitor_gate_permissions ALTER COLUMN id SET DEFAULT nextval('public.visitor_gate_permissions_id_seq'::regclass);
 
 
 --
--- Name: visitor_status_audit id; Type: DEFAULT; Schema: public; Owner: svr_user
+-- Name: visitor_status_audit id; Type: DEFAULT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.visitor_status_audit ALTER COLUMN id SET DEFAULT nextval('public.visitor_status_audit_id_seq'::regclass);
 
 
 --
--- Name: visitor_types id; Type: DEFAULT; Schema: public; Owner: svr_user
+-- Name: visitor_types id; Type: DEFAULT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.visitor_types ALTER COLUMN id SET DEFAULT nextval('public.visitor_types_id_seq'::regclass);
 
 
 --
--- Name: visitors id; Type: DEFAULT; Schema: public; Owner: svr_user
+-- Name: visitors id; Type: DEFAULT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.visitors ALTER COLUMN id SET DEFAULT nextval('public.visitors_id_seq'::regclass);
 
 
 --
--- Data for Name: access_logs_default; Type: TABLE DATA; Schema: public; Owner: svr_user
+-- Data for Name: access_logs_default; Type: TABLE DATA; Schema: public; Owner: -
 --
 
 COPY public.access_logs_default (id, person_type, person_id, gate_id, direction, scan_time, status, error_code, live_photo_path, manual_override) FROM stdin;
@@ -2292,7 +2346,7 @@ COPY public.access_logs_default (id, person_type, person_id, gate_id, direction,
 
 
 --
--- Data for Name: biometric_data; Type: TABLE DATA; Schema: public; Owner: svr_user
+-- Data for Name: biometric_data; Type: TABLE DATA; Schema: public; Owner: -
 --
 
 COPY public.biometric_data (id, visitor_id, biometric_hash, algorithm, enrolled_at) FROM stdin;
@@ -2304,7 +2358,7 @@ COPY public.biometric_data (id, visitor_id, biometric_hash, algorithm, enrolled_
 
 
 --
--- Data for Name: biometric_match_audit; Type: TABLE DATA; Schema: public; Owner: svr_user
+-- Data for Name: biometric_match_audit; Type: TABLE DATA; Schema: public; Owner: -
 --
 
 COPY public.biometric_match_audit (id, visitor_id, gate_id, biometric_hash, match_score, match_result, attempt_time) FROM stdin;
@@ -2312,7 +2366,7 @@ COPY public.biometric_match_audit (id, visitor_id, gate_id, biometric_hash, matc
 
 
 --
--- Data for Name: blacklist; Type: TABLE DATA; Schema: public; Owner: svr_user
+-- Data for Name: blacklist; Type: TABLE DATA; Schema: public; Owner: -
 --
 
 COPY public.blacklist (id, aadhaar_hash, phone, biometric_hash, reason, block_type, created_at) FROM stdin;
@@ -2321,7 +2375,7 @@ COPY public.blacklist (id, aadhaar_hash, phone, biometric_hash, reason, block_ty
 
 
 --
--- Data for Name: card_reissue_log; Type: TABLE DATA; Schema: public; Owner: svr_user
+-- Data for Name: card_reissue_log; Type: TABLE DATA; Schema: public; Owner: -
 --
 
 COPY public.card_reissue_log (id, old_card_id, new_card_id, aso_document_id, reissued_by, reason, reissued_at) FROM stdin;
@@ -2329,7 +2383,7 @@ COPY public.card_reissue_log (id, old_card_id, new_card_id, aso_document_id, rei
 
 
 --
--- Data for Name: departments; Type: TABLE DATA; Schema: public; Owner: svr_user
+-- Data for Name: departments; Type: TABLE DATA; Schema: public; Owner: -
 --
 
 COPY public.departments (id, department_name, is_active, created_at) FROM stdin;
@@ -2348,7 +2402,7 @@ COPY public.departments (id, department_name, is_active, created_at) FROM stdin;
 
 
 --
--- Data for Name: entrances; Type: TABLE DATA; Schema: public; Owner: svr_user
+-- Data for Name: entrances; Type: TABLE DATA; Schema: public; Owner: -
 --
 
 COPY public.entrances (id, entrance_code, entrance_name, is_main_gate) FROM stdin;
@@ -2359,7 +2413,7 @@ COPY public.entrances (id, entrance_code, entrance_name, is_main_gate) FROM stdi
 
 
 --
--- Data for Name: gate_health; Type: TABLE DATA; Schema: public; Owner: svr_user
+-- Data for Name: gate_health; Type: TABLE DATA; Schema: public; Owner: -
 --
 
 COPY public.gate_health (gate_id, last_heartbeat, is_online, cpu_usage, memory_usage, storage_usage, camera_status, rfid_status, biometric_status, updated_at) FROM stdin;
@@ -2371,7 +2425,7 @@ COPY public.gate_health (gate_id, last_heartbeat, is_online, cpu_usage, memory_u
 
 
 --
--- Data for Name: gate_health_logs; Type: TABLE DATA; Schema: public; Owner: svr_user
+-- Data for Name: gate_health_logs; Type: TABLE DATA; Schema: public; Owner: -
 --
 
 COPY public.gate_health_logs (id, gate_id, heartbeat_time, cpu_usage, memory_usage, storage_usage, camera_status, rfid_status, biometric_status) FROM stdin;
@@ -11626,7 +11680,7 @@ COPY public.gate_health_logs (id, gate_id, heartbeat_time, cpu_usage, memory_usa
 
 
 --
--- Data for Name: gates; Type: TABLE DATA; Schema: public; Owner: svr_user
+-- Data for Name: gates; Type: TABLE DATA; Schema: public; Owner: -
 --
 
 COPY public.gates (id, gate_name, entrance_id, ip_address, device_serial, is_active) FROM stdin;
@@ -11638,7 +11692,7 @@ COPY public.gates (id, gate_name, entrance_id, ip_address, device_serial, is_act
 
 
 --
--- Data for Name: host_projects; Type: TABLE DATA; Schema: public; Owner: svr_user
+-- Data for Name: host_projects; Type: TABLE DATA; Schema: public; Owner: -
 --
 
 COPY public.host_projects (id, host_id, project_id, assigned_at) FROM stdin;
@@ -11651,7 +11705,7 @@ COPY public.host_projects (id, host_id, project_id, assigned_at) FROM stdin;
 
 
 --
--- Data for Name: hosts; Type: TABLE DATA; Schema: public; Owner: svr_user
+-- Data for Name: hosts; Type: TABLE DATA; Schema: public; Owner: -
 --
 
 COPY public.hosts (id, host_name, phone, email, department_id, is_active, created_at) FROM stdin;
@@ -11664,7 +11718,7 @@ COPY public.hosts (id, host_name, phone, email, department_id, is_active, create
 
 
 --
--- Data for Name: labour_manifests; Type: TABLE DATA; Schema: public; Owner: svr_user
+-- Data for Name: labour_manifests; Type: TABLE DATA; Schema: public; Owner: -
 --
 
 COPY public.labour_manifests (id, supervisor_id, manifest_date, printed_at, signed, pdf_path) FROM stdin;
@@ -11779,7 +11833,7 @@ COPY public.labour_manifests (id, supervisor_id, manifest_date, printed_at, sign
 
 
 --
--- Data for Name: labour_tokens; Type: TABLE DATA; Schema: public; Owner: svr_user
+-- Data for Name: labour_tokens; Type: TABLE DATA; Schema: public; Owner: -
 --
 
 COPY public.labour_tokens (id, labour_id, token_uid, assigned_date, valid_until, status) FROM stdin;
@@ -11977,7 +12031,7 @@ COPY public.labour_tokens (id, labour_id, token_uid, assigned_date, valid_until,
 
 
 --
--- Data for Name: labours; Type: TABLE DATA; Schema: public; Owner: svr_user
+-- Data for Name: labours; Type: TABLE DATA; Schema: public; Owner: -
 --
 
 COPY public.labours (id, supervisor_id, full_name, phone, aadhaar_encrypted, aadhaar_last4, created_at, gender, age) FROM stdin;
@@ -12180,7 +12234,7 @@ COPY public.labours (id, supervisor_id, full_name, phone, aadhaar_encrypted, aad
 
 
 --
--- Data for Name: manifest_labours; Type: TABLE DATA; Schema: public; Owner: svr_user
+-- Data for Name: manifest_labours; Type: TABLE DATA; Schema: public; Owner: -
 --
 
 COPY public.manifest_labours (manifest_id, labour_id) FROM stdin;
@@ -12434,7 +12488,7 @@ COPY public.manifest_labours (manifest_id, labour_id) FROM stdin;
 
 
 --
--- Data for Name: material_transactions; Type: TABLE DATA; Schema: public; Owner: svr_user
+-- Data for Name: material_transactions; Type: TABLE DATA; Schema: public; Owner: -
 --
 
 COPY public.material_transactions (id, visitor_id, material_id, quantity, direction, transaction_time) FROM stdin;
@@ -12442,7 +12496,7 @@ COPY public.material_transactions (id, visitor_id, material_id, quantity, direct
 
 
 --
--- Data for Name: materials; Type: TABLE DATA; Schema: public; Owner: svr_user
+-- Data for Name: materials; Type: TABLE DATA; Schema: public; Owner: -
 --
 
 COPY public.materials (id, category, make, model, serial_number, description) FROM stdin;
@@ -12450,7 +12504,7 @@ COPY public.materials (id, category, make, model, serial_number, description) FR
 
 
 --
--- Data for Name: projects; Type: TABLE DATA; Schema: public; Owner: svr_user
+-- Data for Name: projects; Type: TABLE DATA; Schema: public; Owner: -
 --
 
 COPY public.projects (id, project_name, is_active, created_at, department_id) FROM stdin;
@@ -12478,7 +12532,7 @@ COPY public.projects (id, project_name, is_active, created_at, department_id) FR
 
 
 --
--- Data for Name: rfid_cards; Type: TABLE DATA; Schema: public; Owner: svr_user
+-- Data for Name: rfid_cards; Type: TABLE DATA; Schema: public; Owner: -
 --
 
 COPY public.rfid_cards (id, visitor_id, card_uid, qr_code, issue_date, expiry_date, card_status, replaced_by, created_at) FROM stdin;
@@ -12508,7 +12562,7 @@ COPY public.rfid_cards (id, visitor_id, card_uid, qr_code, issue_date, expiry_da
 
 
 --
--- Data for Name: rfid_cards_stock; Type: TABLE DATA; Schema: public; Owner: svr_user
+-- Data for Name: rfid_cards_stock; Type: TABLE DATA; Schema: public; Owner: -
 --
 
 COPY public.rfid_cards_stock (id, uid, status, created_at, updated_at, removed_reason) FROM stdin;
@@ -12616,7 +12670,7 @@ COPY public.rfid_cards_stock (id, uid, status, created_at, updated_at, removed_r
 
 
 --
--- Data for Name: rfid_stock; Type: TABLE DATA; Schema: public; Owner: svr_user
+-- Data for Name: rfid_stock; Type: TABLE DATA; Schema: public; Owner: -
 --
 
 COPY public.rfid_stock (id, uid, status, removed_reason, created_at, updated_at) FROM stdin;
@@ -12724,7 +12778,7 @@ COPY public.rfid_stock (id, uid, status, removed_reason, created_at, updated_at)
 
 
 --
--- Data for Name: roles; Type: TABLE DATA; Schema: public; Owner: svr_user
+-- Data for Name: roles; Type: TABLE DATA; Schema: public; Owner: -
 --
 
 COPY public.roles (id, role_name, can_export_pdf, can_export_excel, created_at) FROM stdin;
@@ -12738,7 +12792,7 @@ COPY public.roles (id, role_name, can_export_pdf, can_export_excel, created_at) 
 
 
 --
--- Data for Name: sms_logs; Type: TABLE DATA; Schema: public; Owner: svr_user
+-- Data for Name: sms_logs; Type: TABLE DATA; Schema: public; Owner: -
 --
 
 COPY public.sms_logs (id, recipient, message, event_type, related_entity_id, sent_at, status, recipient_name, attempts, last_error, updated_at) FROM stdin;
@@ -12746,7 +12800,7 @@ COPY public.sms_logs (id, recipient, message, event_type, related_entity_id, sen
 
 
 --
--- Data for Name: sync_queue; Type: TABLE DATA; Schema: public; Owner: svr_user
+-- Data for Name: sync_queue; Type: TABLE DATA; Schema: public; Owner: -
 --
 
 COPY public.sync_queue (id, gate_id, payload, created_at, synced) FROM stdin;
@@ -12754,7 +12808,7 @@ COPY public.sync_queue (id, gate_id, payload, created_at, synced) FROM stdin;
 
 
 --
--- Data for Name: users; Type: TABLE DATA; Schema: public; Owner: svr_user
+-- Data for Name: users; Type: TABLE DATA; Schema: public; Owner: -
 --
 
 COPY public.users (id, username, password_hash, full_name, phone, role_id, is_active, created_at) FROM stdin;
@@ -12767,7 +12821,7 @@ COPY public.users (id, username, password_hash, full_name, phone, role_id, is_ac
 
 
 --
--- Data for Name: visitor_documents; Type: TABLE DATA; Schema: public; Owner: svr_user
+-- Data for Name: visitor_documents; Type: TABLE DATA; Schema: public; Owner: -
 --
 
 COPY public.visitor_documents (id, visitor_id, doc_type, doc_number, expiry_date, file_path, uploaded_at) FROM stdin;
@@ -12781,7 +12835,7 @@ COPY public.visitor_documents (id, visitor_id, doc_type, doc_number, expiry_date
 
 
 --
--- Data for Name: visitor_gate_permissions; Type: TABLE DATA; Schema: public; Owner: svr_user
+-- Data for Name: visitor_gate_permissions; Type: TABLE DATA; Schema: public; Owner: -
 --
 
 COPY public.visitor_gate_permissions (id, visitor_id, gate_id, valid_from, valid_to, created_at) FROM stdin;
@@ -12795,7 +12849,7 @@ COPY public.visitor_gate_permissions (id, visitor_id, gate_id, valid_from, valid
 
 
 --
--- Data for Name: visitor_status_audit; Type: TABLE DATA; Schema: public; Owner: svr_user
+-- Data for Name: visitor_status_audit; Type: TABLE DATA; Schema: public; Owner: -
 --
 
 COPY public.visitor_status_audit (id, visitor_id, old_status, new_status, changed_by, reason, changed_at) FROM stdin;
@@ -12889,7 +12943,7 @@ COPY public.visitor_status_audit (id, visitor_id, old_status, new_status, change
 
 
 --
--- Data for Name: visitor_types; Type: TABLE DATA; Schema: public; Owner: svr_user
+-- Data for Name: visitor_types; Type: TABLE DATA; Schema: public; Owner: -
 --
 
 COPY public.visitor_types (id, type_name, allows_labour, is_internal) FROM stdin;
@@ -12906,7 +12960,7 @@ COPY public.visitor_types (id, type_name, allows_labour, is_internal) FROM stdin
 
 
 --
--- Data for Name: visitors; Type: TABLE DATA; Schema: public; Owner: svr_user
+-- Data for Name: visitors; Type: TABLE DATA; Schema: public; Owner: -
 --
 
 COPY public.visitors (id, visitor_type_id, pass_no, first_name, last_name, designation, company_name, company_address, project_id, department_id, host_id, primary_phone, alternate_phone, email, date_of_birth, blood_group, height_cm, visible_marks, temp_address, perm_address, aadhaar_encrypted, aadhaar_last4, entrance_id, smartphone_allowed, smartphone_expiry, laptop_allowed, laptop_make, laptop_model, laptop_serial, laptop_expiry, ops_area_permitted, status, valid_from, valid_to, enrollment_photo_path, created_by, created_at, updated_at, can_register_labours, gender, work_order_no, work_order_expiry, police_verification_certificate_number, pvc_expiry, vehicle_number, vehicle_make, vehicle_model, vehicle_color) FROM stdin;
@@ -13030,210 +13084,210 @@ COPY public.visitors (id, visitor_type_id, pass_no, first_name, last_name, desig
 
 
 --
--- Name: access_logs_id_seq; Type: SEQUENCE SET; Schema: public; Owner: svr_user
+-- Name: access_logs_id_seq; Type: SEQUENCE SET; Schema: public; Owner: -
 --
 
 SELECT pg_catalog.setval('public.access_logs_id_seq', 835, true);
 
 
 --
--- Name: biometric_data_id_seq; Type: SEQUENCE SET; Schema: public; Owner: svr_user
+-- Name: biometric_data_id_seq; Type: SEQUENCE SET; Schema: public; Owner: -
 --
 
 SELECT pg_catalog.setval('public.biometric_data_id_seq', 3005, true);
 
 
 --
--- Name: biometric_match_audit_id_seq; Type: SEQUENCE SET; Schema: public; Owner: svr_user
+-- Name: biometric_match_audit_id_seq; Type: SEQUENCE SET; Schema: public; Owner: -
 --
 
 SELECT pg_catalog.setval('public.biometric_match_audit_id_seq', 1, false);
 
 
 --
--- Name: blacklist_id_seq; Type: SEQUENCE SET; Schema: public; Owner: svr_user
+-- Name: blacklist_id_seq; Type: SEQUENCE SET; Schema: public; Owner: -
 --
 
 SELECT pg_catalog.setval('public.blacklist_id_seq', 9004, true);
 
 
 --
--- Name: card_reissue_log_id_seq; Type: SEQUENCE SET; Schema: public; Owner: svr_user
+-- Name: card_reissue_log_id_seq; Type: SEQUENCE SET; Schema: public; Owner: -
 --
 
 SELECT pg_catalog.setval('public.card_reissue_log_id_seq', 1, false);
 
 
 --
--- Name: departments_id_seq; Type: SEQUENCE SET; Schema: public; Owner: svr_user
+-- Name: departments_id_seq; Type: SEQUENCE SET; Schema: public; Owner: -
 --
 
 SELECT pg_catalog.setval('public.departments_id_seq', 12, true);
 
 
 --
--- Name: entrances_id_seq; Type: SEQUENCE SET; Schema: public; Owner: svr_user
+-- Name: entrances_id_seq; Type: SEQUENCE SET; Schema: public; Owner: -
 --
 
 SELECT pg_catalog.setval('public.entrances_id_seq', 4, true);
 
 
 --
--- Name: gate_health_logs_id_seq; Type: SEQUENCE SET; Schema: public; Owner: svr_user
+-- Name: gate_health_logs_id_seq; Type: SEQUENCE SET; Schema: public; Owner: -
 --
 
 SELECT pg_catalog.setval('public.gate_health_logs_id_seq', 9247, true);
 
 
 --
--- Name: gates_id_seq; Type: SEQUENCE SET; Schema: public; Owner: svr_user
+-- Name: gates_id_seq; Type: SEQUENCE SET; Schema: public; Owner: -
 --
 
 SELECT pg_catalog.setval('public.gates_id_seq', 5, true);
 
 
 --
--- Name: host_projects_id_seq; Type: SEQUENCE SET; Schema: public; Owner: svr_user
+-- Name: host_projects_id_seq; Type: SEQUENCE SET; Schema: public; Owner: -
 --
 
 SELECT pg_catalog.setval('public.host_projects_id_seq', 28, true);
 
 
 --
--- Name: hosts_id_seq; Type: SEQUENCE SET; Schema: public; Owner: svr_user
+-- Name: hosts_id_seq; Type: SEQUENCE SET; Schema: public; Owner: -
 --
 
 SELECT pg_catalog.setval('public.hosts_id_seq', 6, true);
 
 
 --
--- Name: labour_manifests_id_seq; Type: SEQUENCE SET; Schema: public; Owner: svr_user
+-- Name: labour_manifests_id_seq; Type: SEQUENCE SET; Schema: public; Owner: -
 --
 
 SELECT pg_catalog.setval('public.labour_manifests_id_seq', 107, true);
 
 
 --
--- Name: labour_tokens_id_seq; Type: SEQUENCE SET; Schema: public; Owner: svr_user
+-- Name: labour_tokens_id_seq; Type: SEQUENCE SET; Schema: public; Owner: -
 --
 
 SELECT pg_catalog.setval('public.labour_tokens_id_seq', 6191, true);
 
 
 --
--- Name: labours_id_seq; Type: SEQUENCE SET; Schema: public; Owner: svr_user
+-- Name: labours_id_seq; Type: SEQUENCE SET; Schema: public; Owner: -
 --
 
 SELECT pg_catalog.setval('public.labours_id_seq', 5196, true);
 
 
 --
--- Name: material_transactions_id_seq; Type: SEQUENCE SET; Schema: public; Owner: svr_user
+-- Name: material_transactions_id_seq; Type: SEQUENCE SET; Schema: public; Owner: -
 --
 
 SELECT pg_catalog.setval('public.material_transactions_id_seq', 8001, true);
 
 
 --
--- Name: materials_id_seq; Type: SEQUENCE SET; Schema: public; Owner: svr_user
+-- Name: materials_id_seq; Type: SEQUENCE SET; Schema: public; Owner: -
 --
 
 SELECT pg_catalog.setval('public.materials_id_seq', 7001, true);
 
 
 --
--- Name: projects_id_seq; Type: SEQUENCE SET; Schema: public; Owner: svr_user
+-- Name: projects_id_seq; Type: SEQUENCE SET; Schema: public; Owner: -
 --
 
 SELECT pg_catalog.setval('public.projects_id_seq', 21, true);
 
 
 --
--- Name: rfid_cards_id_seq; Type: SEQUENCE SET; Schema: public; Owner: svr_user
+-- Name: rfid_cards_id_seq; Type: SEQUENCE SET; Schema: public; Owner: -
 --
 
 SELECT pg_catalog.setval('public.rfid_cards_id_seq', 4027, true);
 
 
 --
--- Name: rfid_cards_stock_id_seq; Type: SEQUENCE SET; Schema: public; Owner: svr_user
+-- Name: rfid_cards_stock_id_seq; Type: SEQUENCE SET; Schema: public; Owner: -
 --
 
 SELECT pg_catalog.setval('public.rfid_cards_stock_id_seq', 100, true);
 
 
 --
--- Name: rfid_stock_id_seq; Type: SEQUENCE SET; Schema: public; Owner: svr_user
+-- Name: rfid_stock_id_seq; Type: SEQUENCE SET; Schema: public; Owner: -
 --
 
 SELECT pg_catalog.setval('public.rfid_stock_id_seq', 100, true);
 
 
 --
--- Name: roles_id_seq; Type: SEQUENCE SET; Schema: public; Owner: svr_user
+-- Name: roles_id_seq; Type: SEQUENCE SET; Schema: public; Owner: -
 --
 
 SELECT pg_catalog.setval('public.roles_id_seq', 6, true);
 
 
 --
--- Name: sms_logs_id_seq; Type: SEQUENCE SET; Schema: public; Owner: svr_user
+-- Name: sms_logs_id_seq; Type: SEQUENCE SET; Schema: public; Owner: -
 --
 
 SELECT pg_catalog.setval('public.sms_logs_id_seq', 11169, true);
 
 
 --
--- Name: sync_queue_id_seq; Type: SEQUENCE SET; Schema: public; Owner: svr_user
+-- Name: sync_queue_id_seq; Type: SEQUENCE SET; Schema: public; Owner: -
 --
 
 SELECT pg_catalog.setval('public.sync_queue_id_seq', 11001, true);
 
 
 --
--- Name: users_id_seq; Type: SEQUENCE SET; Schema: public; Owner: svr_user
+-- Name: users_id_seq; Type: SEQUENCE SET; Schema: public; Owner: -
 --
 
 SELECT pg_catalog.setval('public.users_id_seq', 6, true);
 
 
 --
--- Name: visitor_documents_id_seq; Type: SEQUENCE SET; Schema: public; Owner: svr_user
+-- Name: visitor_documents_id_seq; Type: SEQUENCE SET; Schema: public; Owner: -
 --
 
 SELECT pg_catalog.setval('public.visitor_documents_id_seq', 2010, true);
 
 
 --
--- Name: visitor_gate_permissions_id_seq; Type: SEQUENCE SET; Schema: public; Owner: svr_user
+-- Name: visitor_gate_permissions_id_seq; Type: SEQUENCE SET; Schema: public; Owner: -
 --
 
 SELECT pg_catalog.setval('public.visitor_gate_permissions_id_seq', 42, true);
 
 
 --
--- Name: visitor_status_audit_id_seq; Type: SEQUENCE SET; Schema: public; Owner: svr_user
+-- Name: visitor_status_audit_id_seq; Type: SEQUENCE SET; Schema: public; Owner: -
 --
 
 SELECT pg_catalog.setval('public.visitor_status_audit_id_seq', 86, true);
 
 
 --
--- Name: visitor_types_id_seq; Type: SEQUENCE SET; Schema: public; Owner: svr_user
+-- Name: visitor_types_id_seq; Type: SEQUENCE SET; Schema: public; Owner: -
 --
 
 SELECT pg_catalog.setval('public.visitor_types_id_seq', 9, true);
 
 
 --
--- Name: visitors_id_seq; Type: SEQUENCE SET; Schema: public; Owner: svr_user
+-- Name: visitors_id_seq; Type: SEQUENCE SET; Schema: public; Owner: -
 --
 
 SELECT pg_catalog.setval('public.visitors_id_seq', 1117, true);
 
 
 --
--- Name: access_logs access_logs_pkey; Type: CONSTRAINT; Schema: public; Owner: svr_user
+-- Name: access_logs access_logs_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.access_logs
@@ -13241,7 +13295,7 @@ ALTER TABLE ONLY public.access_logs
 
 
 --
--- Name: access_logs_default access_logs_default_pkey; Type: CONSTRAINT; Schema: public; Owner: svr_user
+-- Name: access_logs_default access_logs_default_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.access_logs_default
@@ -13249,7 +13303,7 @@ ALTER TABLE ONLY public.access_logs_default
 
 
 --
--- Name: biometric_data biometric_data_pkey; Type: CONSTRAINT; Schema: public; Owner: svr_user
+-- Name: biometric_data biometric_data_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.biometric_data
@@ -13257,7 +13311,7 @@ ALTER TABLE ONLY public.biometric_data
 
 
 --
--- Name: biometric_match_audit biometric_match_audit_pkey; Type: CONSTRAINT; Schema: public; Owner: svr_user
+-- Name: biometric_match_audit biometric_match_audit_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.biometric_match_audit
@@ -13265,7 +13319,7 @@ ALTER TABLE ONLY public.biometric_match_audit
 
 
 --
--- Name: blacklist blacklist_pkey; Type: CONSTRAINT; Schema: public; Owner: svr_user
+-- Name: blacklist blacklist_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.blacklist
@@ -13273,7 +13327,7 @@ ALTER TABLE ONLY public.blacklist
 
 
 --
--- Name: card_reissue_log card_reissue_log_pkey; Type: CONSTRAINT; Schema: public; Owner: svr_user
+-- Name: card_reissue_log card_reissue_log_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.card_reissue_log
@@ -13281,7 +13335,7 @@ ALTER TABLE ONLY public.card_reissue_log
 
 
 --
--- Name: departments departments_pkey; Type: CONSTRAINT; Schema: public; Owner: svr_user
+-- Name: departments departments_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.departments
@@ -13289,7 +13343,7 @@ ALTER TABLE ONLY public.departments
 
 
 --
--- Name: entrances entrances_entrance_code_key; Type: CONSTRAINT; Schema: public; Owner: svr_user
+-- Name: entrances entrances_entrance_code_key; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.entrances
@@ -13297,7 +13351,7 @@ ALTER TABLE ONLY public.entrances
 
 
 --
--- Name: entrances entrances_pkey; Type: CONSTRAINT; Schema: public; Owner: svr_user
+-- Name: entrances entrances_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.entrances
@@ -13305,7 +13359,7 @@ ALTER TABLE ONLY public.entrances
 
 
 --
--- Name: gate_health_logs gate_health_logs_pkey; Type: CONSTRAINT; Schema: public; Owner: svr_user
+-- Name: gate_health_logs gate_health_logs_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.gate_health_logs
@@ -13313,7 +13367,7 @@ ALTER TABLE ONLY public.gate_health_logs
 
 
 --
--- Name: gate_health gate_health_pkey; Type: CONSTRAINT; Schema: public; Owner: svr_user
+-- Name: gate_health gate_health_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.gate_health
@@ -13321,7 +13375,7 @@ ALTER TABLE ONLY public.gate_health
 
 
 --
--- Name: gates gates_pkey; Type: CONSTRAINT; Schema: public; Owner: svr_user
+-- Name: gates gates_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.gates
@@ -13329,7 +13383,7 @@ ALTER TABLE ONLY public.gates
 
 
 --
--- Name: host_projects host_projects_pkey; Type: CONSTRAINT; Schema: public; Owner: svr_user
+-- Name: host_projects host_projects_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.host_projects
@@ -13337,7 +13391,7 @@ ALTER TABLE ONLY public.host_projects
 
 
 --
--- Name: hosts hosts_pkey; Type: CONSTRAINT; Schema: public; Owner: svr_user
+-- Name: hosts hosts_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.hosts
@@ -13345,7 +13399,7 @@ ALTER TABLE ONLY public.hosts
 
 
 --
--- Name: labour_manifests labour_manifests_pkey; Type: CONSTRAINT; Schema: public; Owner: svr_user
+-- Name: labour_manifests labour_manifests_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.labour_manifests
@@ -13353,7 +13407,7 @@ ALTER TABLE ONLY public.labour_manifests
 
 
 --
--- Name: labour_tokens labour_tokens_pkey; Type: CONSTRAINT; Schema: public; Owner: svr_user
+-- Name: labour_tokens labour_tokens_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.labour_tokens
@@ -13361,7 +13415,7 @@ ALTER TABLE ONLY public.labour_tokens
 
 
 --
--- Name: labours labours_pkey; Type: CONSTRAINT; Schema: public; Owner: svr_user
+-- Name: labours labours_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.labours
@@ -13369,7 +13423,7 @@ ALTER TABLE ONLY public.labours
 
 
 --
--- Name: manifest_labours manifest_labours_pkey; Type: CONSTRAINT; Schema: public; Owner: svr_user
+-- Name: manifest_labours manifest_labours_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.manifest_labours
@@ -13377,7 +13431,7 @@ ALTER TABLE ONLY public.manifest_labours
 
 
 --
--- Name: material_transactions material_transactions_pkey; Type: CONSTRAINT; Schema: public; Owner: svr_user
+-- Name: material_transactions material_transactions_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.material_transactions
@@ -13385,7 +13439,7 @@ ALTER TABLE ONLY public.material_transactions
 
 
 --
--- Name: materials materials_pkey; Type: CONSTRAINT; Schema: public; Owner: svr_user
+-- Name: materials materials_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.materials
@@ -13393,7 +13447,7 @@ ALTER TABLE ONLY public.materials
 
 
 --
--- Name: projects projects_pkey; Type: CONSTRAINT; Schema: public; Owner: svr_user
+-- Name: projects projects_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.projects
@@ -13401,7 +13455,7 @@ ALTER TABLE ONLY public.projects
 
 
 --
--- Name: rfid_cards rfid_cards_card_uid_key; Type: CONSTRAINT; Schema: public; Owner: svr_user
+-- Name: rfid_cards rfid_cards_card_uid_key; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.rfid_cards
@@ -13409,7 +13463,7 @@ ALTER TABLE ONLY public.rfid_cards
 
 
 --
--- Name: rfid_cards rfid_cards_pkey; Type: CONSTRAINT; Schema: public; Owner: svr_user
+-- Name: rfid_cards rfid_cards_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.rfid_cards
@@ -13417,7 +13471,7 @@ ALTER TABLE ONLY public.rfid_cards
 
 
 --
--- Name: rfid_cards_stock rfid_cards_stock_pkey; Type: CONSTRAINT; Schema: public; Owner: svr_user
+-- Name: rfid_cards_stock rfid_cards_stock_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.rfid_cards_stock
@@ -13425,7 +13479,7 @@ ALTER TABLE ONLY public.rfid_cards_stock
 
 
 --
--- Name: rfid_cards_stock rfid_cards_stock_uid_key; Type: CONSTRAINT; Schema: public; Owner: svr_user
+-- Name: rfid_cards_stock rfid_cards_stock_uid_key; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.rfid_cards_stock
@@ -13433,7 +13487,7 @@ ALTER TABLE ONLY public.rfid_cards_stock
 
 
 --
--- Name: rfid_stock rfid_stock_pkey; Type: CONSTRAINT; Schema: public; Owner: svr_user
+-- Name: rfid_stock rfid_stock_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.rfid_stock
@@ -13441,7 +13495,7 @@ ALTER TABLE ONLY public.rfid_stock
 
 
 --
--- Name: rfid_stock rfid_stock_uid_key; Type: CONSTRAINT; Schema: public; Owner: svr_user
+-- Name: rfid_stock rfid_stock_uid_key; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.rfid_stock
@@ -13449,7 +13503,7 @@ ALTER TABLE ONLY public.rfid_stock
 
 
 --
--- Name: roles roles_pkey; Type: CONSTRAINT; Schema: public; Owner: svr_user
+-- Name: roles roles_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.roles
@@ -13457,7 +13511,7 @@ ALTER TABLE ONLY public.roles
 
 
 --
--- Name: roles roles_role_name_key; Type: CONSTRAINT; Schema: public; Owner: svr_user
+-- Name: roles roles_role_name_key; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.roles
@@ -13465,7 +13519,7 @@ ALTER TABLE ONLY public.roles
 
 
 --
--- Name: sms_logs sms_logs_pkey; Type: CONSTRAINT; Schema: public; Owner: svr_user
+-- Name: sms_logs sms_logs_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.sms_logs
@@ -13473,7 +13527,7 @@ ALTER TABLE ONLY public.sms_logs
 
 
 --
--- Name: sync_queue sync_queue_pkey; Type: CONSTRAINT; Schema: public; Owner: svr_user
+-- Name: sync_queue sync_queue_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.sync_queue
@@ -13481,7 +13535,7 @@ ALTER TABLE ONLY public.sync_queue
 
 
 --
--- Name: host_projects uq_host_project; Type: CONSTRAINT; Schema: public; Owner: svr_user
+-- Name: host_projects uq_host_project; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.host_projects
@@ -13489,7 +13543,7 @@ ALTER TABLE ONLY public.host_projects
 
 
 --
--- Name: visitor_gate_permissions uq_visitor_gate; Type: CONSTRAINT; Schema: public; Owner: svr_user
+-- Name: visitor_gate_permissions uq_visitor_gate; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.visitor_gate_permissions
@@ -13497,7 +13551,7 @@ ALTER TABLE ONLY public.visitor_gate_permissions
 
 
 --
--- Name: users users_pkey; Type: CONSTRAINT; Schema: public; Owner: svr_user
+-- Name: users users_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.users
@@ -13505,7 +13559,7 @@ ALTER TABLE ONLY public.users
 
 
 --
--- Name: users users_username_key; Type: CONSTRAINT; Schema: public; Owner: svr_user
+-- Name: users users_username_key; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.users
@@ -13513,7 +13567,7 @@ ALTER TABLE ONLY public.users
 
 
 --
--- Name: visitor_documents visitor_documents_pkey; Type: CONSTRAINT; Schema: public; Owner: svr_user
+-- Name: visitor_documents visitor_documents_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.visitor_documents
@@ -13521,7 +13575,7 @@ ALTER TABLE ONLY public.visitor_documents
 
 
 --
--- Name: visitor_gate_permissions visitor_gate_permissions_pkey; Type: CONSTRAINT; Schema: public; Owner: svr_user
+-- Name: visitor_gate_permissions visitor_gate_permissions_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.visitor_gate_permissions
@@ -13529,7 +13583,7 @@ ALTER TABLE ONLY public.visitor_gate_permissions
 
 
 --
--- Name: visitor_status_audit visitor_status_audit_pkey; Type: CONSTRAINT; Schema: public; Owner: svr_user
+-- Name: visitor_status_audit visitor_status_audit_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.visitor_status_audit
@@ -13537,7 +13591,7 @@ ALTER TABLE ONLY public.visitor_status_audit
 
 
 --
--- Name: visitor_types visitor_types_pkey; Type: CONSTRAINT; Schema: public; Owner: svr_user
+-- Name: visitor_types visitor_types_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.visitor_types
@@ -13545,7 +13599,7 @@ ALTER TABLE ONLY public.visitor_types
 
 
 --
--- Name: visitor_types visitor_types_type_name_key; Type: CONSTRAINT; Schema: public; Owner: svr_user
+-- Name: visitor_types visitor_types_type_name_key; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.visitor_types
@@ -13553,7 +13607,7 @@ ALTER TABLE ONLY public.visitor_types
 
 
 --
--- Name: visitors visitors_pass_no_key; Type: CONSTRAINT; Schema: public; Owner: svr_user
+-- Name: visitors visitors_pass_no_key; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.visitors
@@ -13561,7 +13615,7 @@ ALTER TABLE ONLY public.visitors
 
 
 --
--- Name: visitors visitors_pkey; Type: CONSTRAINT; Schema: public; Owner: svr_user
+-- Name: visitors visitors_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.visitors
@@ -13569,84 +13623,84 @@ ALTER TABLE ONLY public.visitors
 
 
 --
--- Name: idx_hp_host_id; Type: INDEX; Schema: public; Owner: svr_user
+-- Name: idx_hp_host_id; Type: INDEX; Schema: public; Owner: -
 --
 
 CREATE INDEX idx_hp_host_id ON public.host_projects USING btree (host_id);
 
 
 --
--- Name: idx_hp_project_id; Type: INDEX; Schema: public; Owner: svr_user
+-- Name: idx_hp_project_id; Type: INDEX; Schema: public; Owner: -
 --
 
 CREATE INDEX idx_hp_project_id ON public.host_projects USING btree (project_id);
 
 
 --
--- Name: idx_rfid_cards_stock_status; Type: INDEX; Schema: public; Owner: svr_user
+-- Name: idx_rfid_cards_stock_status; Type: INDEX; Schema: public; Owner: -
 --
 
 CREATE INDEX idx_rfid_cards_stock_status ON public.rfid_cards_stock USING btree (status);
 
 
 --
--- Name: idx_rfid_cards_stock_uid; Type: INDEX; Schema: public; Owner: svr_user
+-- Name: idx_rfid_cards_stock_uid; Type: INDEX; Schema: public; Owner: -
 --
 
 CREATE INDEX idx_rfid_cards_stock_uid ON public.rfid_cards_stock USING btree (uid);
 
 
 --
--- Name: idx_rfid_stock_status; Type: INDEX; Schema: public; Owner: svr_user
+-- Name: idx_rfid_stock_status; Type: INDEX; Schema: public; Owner: -
 --
 
 CREATE INDEX idx_rfid_stock_status ON public.rfid_stock USING btree (status);
 
 
 --
--- Name: idx_rfid_stock_uid; Type: INDEX; Schema: public; Owner: svr_user
+-- Name: idx_rfid_stock_uid; Type: INDEX; Schema: public; Owner: -
 --
 
 CREATE INDEX idx_rfid_stock_uid ON public.rfid_stock USING btree (uid);
 
 
 --
--- Name: idx_sms_logs_status; Type: INDEX; Schema: public; Owner: svr_user
+-- Name: idx_sms_logs_status; Type: INDEX; Schema: public; Owner: -
 --
 
 CREATE INDEX idx_sms_logs_status ON public.sms_logs USING btree (status);
 
 
 --
--- Name: idx_visitors_can_register_labours; Type: INDEX; Schema: public; Owner: svr_user
+-- Name: idx_visitors_can_register_labours; Type: INDEX; Schema: public; Owner: -
 --
 
 CREATE INDEX idx_visitors_can_register_labours ON public.visitors USING btree (can_register_labours);
 
 
 --
--- Name: idx_visitors_vehicle_number; Type: INDEX; Schema: public; Owner: svr_user
+-- Name: idx_visitors_vehicle_number; Type: INDEX; Schema: public; Owner: -
 --
 
 CREATE INDEX idx_visitors_vehicle_number ON public.visitors USING btree (vehicle_number);
 
 
 --
--- Name: access_logs_default_pkey; Type: INDEX ATTACH; Schema: public; Owner: svr_user
+-- Name: access_logs_default_pkey; Type: INDEX ATTACH; Schema: public; Owner: -
 --
 
 ALTER INDEX public.access_logs_pkey ATTACH PARTITION public.access_logs_default_pkey;
 
 
 --
--- Name: host_projects trg_validate_host_project; Type: TRIGGER; Schema: public; Owner: svr_user
+-- Name: host_projects trg_validate_host_project; Type: TRIGGER; Schema: public; Owner: -
 --
 
 CREATE TRIGGER trg_validate_host_project BEFORE INSERT OR UPDATE ON public.host_projects FOR EACH ROW EXECUTE FUNCTION public.validate_host_project_department();
 
 
 --
--- Name: access_logs access_logs_gate_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: svr_user
+-- Name: access_logs access_logs_gate_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE public.access_logs
@@ -13654,7 +13708,7 @@ ALTER TABLE public.access_logs
 
 
 --
--- Name: biometric_data biometric_data_visitor_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: svr_user
+-- Name: biometric_data biometric_data_visitor_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.biometric_data
@@ -13662,7 +13716,7 @@ ALTER TABLE ONLY public.biometric_data
 
 
 --
--- Name: biometric_match_audit biometric_match_audit_gate_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: svr_user
+-- Name: biometric_match_audit biometric_match_audit_gate_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.biometric_match_audit
@@ -13670,7 +13724,7 @@ ALTER TABLE ONLY public.biometric_match_audit
 
 
 --
--- Name: card_reissue_log card_reissue_log_aso_document_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: svr_user
+-- Name: card_reissue_log card_reissue_log_aso_document_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.card_reissue_log
@@ -13678,7 +13732,7 @@ ALTER TABLE ONLY public.card_reissue_log
 
 
 --
--- Name: card_reissue_log card_reissue_log_new_card_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: svr_user
+-- Name: card_reissue_log card_reissue_log_new_card_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.card_reissue_log
@@ -13686,7 +13740,7 @@ ALTER TABLE ONLY public.card_reissue_log
 
 
 --
--- Name: card_reissue_log card_reissue_log_old_card_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: svr_user
+-- Name: card_reissue_log card_reissue_log_old_card_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.card_reissue_log
@@ -13694,7 +13748,7 @@ ALTER TABLE ONLY public.card_reissue_log
 
 
 --
--- Name: card_reissue_log card_reissue_log_reissued_by_fkey; Type: FK CONSTRAINT; Schema: public; Owner: svr_user
+-- Name: card_reissue_log card_reissue_log_reissued_by_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.card_reissue_log
@@ -13702,7 +13756,7 @@ ALTER TABLE ONLY public.card_reissue_log
 
 
 --
--- Name: host_projects fk_hp_host; Type: FK CONSTRAINT; Schema: public; Owner: svr_user
+-- Name: host_projects fk_hp_host; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.host_projects
@@ -13710,7 +13764,7 @@ ALTER TABLE ONLY public.host_projects
 
 
 --
--- Name: host_projects fk_hp_project; Type: FK CONSTRAINT; Schema: public; Owner: svr_user
+-- Name: host_projects fk_hp_project; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.host_projects
@@ -13718,7 +13772,7 @@ ALTER TABLE ONLY public.host_projects
 
 
 --
--- Name: visitor_gate_permissions fk_vgp_gate; Type: FK CONSTRAINT; Schema: public; Owner: svr_user
+-- Name: visitor_gate_permissions fk_vgp_gate; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.visitor_gate_permissions
@@ -13726,7 +13780,7 @@ ALTER TABLE ONLY public.visitor_gate_permissions
 
 
 --
--- Name: visitor_gate_permissions fk_vgp_visitor; Type: FK CONSTRAINT; Schema: public; Owner: svr_user
+-- Name: visitor_gate_permissions fk_vgp_visitor; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.visitor_gate_permissions
@@ -13734,7 +13788,7 @@ ALTER TABLE ONLY public.visitor_gate_permissions
 
 
 --
--- Name: gate_health gate_health_gate_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: svr_user
+-- Name: gate_health gate_health_gate_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.gate_health
@@ -13742,7 +13796,7 @@ ALTER TABLE ONLY public.gate_health
 
 
 --
--- Name: gate_health_logs gate_health_logs_gate_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: svr_user
+-- Name: gate_health_logs gate_health_logs_gate_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.gate_health_logs
@@ -13750,7 +13804,7 @@ ALTER TABLE ONLY public.gate_health_logs
 
 
 --
--- Name: gates gates_entrance_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: svr_user
+-- Name: gates gates_entrance_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.gates
@@ -13758,7 +13812,7 @@ ALTER TABLE ONLY public.gates
 
 
 --
--- Name: hosts hosts_department_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: svr_user
+-- Name: hosts hosts_department_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.hosts
@@ -13766,7 +13820,7 @@ ALTER TABLE ONLY public.hosts
 
 
 --
--- Name: labour_manifests labour_manifests_supervisor_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: svr_user
+-- Name: labour_manifests labour_manifests_supervisor_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.labour_manifests
@@ -13774,7 +13828,7 @@ ALTER TABLE ONLY public.labour_manifests
 
 
 --
--- Name: labour_tokens labour_tokens_labour_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: svr_user
+-- Name: labour_tokens labour_tokens_labour_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.labour_tokens
@@ -13782,7 +13836,7 @@ ALTER TABLE ONLY public.labour_tokens
 
 
 --
--- Name: labours labours_supervisor_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: svr_user
+-- Name: labours labours_supervisor_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.labours
@@ -13790,7 +13844,7 @@ ALTER TABLE ONLY public.labours
 
 
 --
--- Name: manifest_labours manifest_labours_labour_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: svr_user
+-- Name: manifest_labours manifest_labours_labour_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.manifest_labours
@@ -13798,7 +13852,7 @@ ALTER TABLE ONLY public.manifest_labours
 
 
 --
--- Name: manifest_labours manifest_labours_manifest_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: svr_user
+-- Name: manifest_labours manifest_labours_manifest_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.manifest_labours
@@ -13806,7 +13860,7 @@ ALTER TABLE ONLY public.manifest_labours
 
 
 --
--- Name: material_transactions material_transactions_material_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: svr_user
+-- Name: material_transactions material_transactions_material_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.material_transactions
@@ -13814,7 +13868,7 @@ ALTER TABLE ONLY public.material_transactions
 
 
 --
--- Name: material_transactions material_transactions_visitor_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: svr_user
+-- Name: material_transactions material_transactions_visitor_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.material_transactions
@@ -13822,7 +13876,7 @@ ALTER TABLE ONLY public.material_transactions
 
 
 --
--- Name: projects projects_department_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: svr_user
+-- Name: projects projects_department_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.projects
@@ -13830,7 +13884,7 @@ ALTER TABLE ONLY public.projects
 
 
 --
--- Name: rfid_cards rfid_cards_visitor_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: svr_user
+-- Name: rfid_cards rfid_cards_visitor_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.rfid_cards
@@ -13838,7 +13892,7 @@ ALTER TABLE ONLY public.rfid_cards
 
 
 --
--- Name: sync_queue sync_queue_gate_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: svr_user
+-- Name: sync_queue sync_queue_gate_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.sync_queue
@@ -13846,7 +13900,7 @@ ALTER TABLE ONLY public.sync_queue
 
 
 --
--- Name: users users_role_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: svr_user
+-- Name: users users_role_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.users
@@ -13854,7 +13908,7 @@ ALTER TABLE ONLY public.users
 
 
 --
--- Name: visitor_documents visitor_documents_visitor_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: svr_user
+-- Name: visitor_documents visitor_documents_visitor_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.visitor_documents
@@ -13862,7 +13916,7 @@ ALTER TABLE ONLY public.visitor_documents
 
 
 --
--- Name: visitor_status_audit visitor_status_audit_changed_by_fkey; Type: FK CONSTRAINT; Schema: public; Owner: svr_user
+-- Name: visitor_status_audit visitor_status_audit_changed_by_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.visitor_status_audit
@@ -13870,7 +13924,7 @@ ALTER TABLE ONLY public.visitor_status_audit
 
 
 --
--- Name: visitor_status_audit visitor_status_audit_visitor_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: svr_user
+-- Name: visitor_status_audit visitor_status_audit_visitor_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.visitor_status_audit
@@ -13878,7 +13932,7 @@ ALTER TABLE ONLY public.visitor_status_audit
 
 
 --
--- Name: visitors visitors_created_by_fkey; Type: FK CONSTRAINT; Schema: public; Owner: svr_user
+-- Name: visitors visitors_created_by_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.visitors
@@ -13886,7 +13940,7 @@ ALTER TABLE ONLY public.visitors
 
 
 --
--- Name: visitors visitors_department_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: svr_user
+-- Name: visitors visitors_department_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.visitors
@@ -13894,7 +13948,7 @@ ALTER TABLE ONLY public.visitors
 
 
 --
--- Name: visitors visitors_entrance_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: svr_user
+-- Name: visitors visitors_entrance_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.visitors
@@ -13902,7 +13956,7 @@ ALTER TABLE ONLY public.visitors
 
 
 --
--- Name: visitors visitors_host_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: svr_user
+-- Name: visitors visitors_host_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.visitors
@@ -13910,7 +13964,7 @@ ALTER TABLE ONLY public.visitors
 
 
 --
--- Name: visitors visitors_project_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: svr_user
+-- Name: visitors visitors_project_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.visitors
@@ -13918,7 +13972,7 @@ ALTER TABLE ONLY public.visitors
 
 
 --
--- Name: visitors visitors_visitor_type_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: svr_user
+-- Name: visitors visitors_visitor_type_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.visitors
@@ -13929,5 +13983,5 @@ ALTER TABLE ONLY public.visitors
 -- PostgreSQL database dump complete
 --
 
-\unrestrict 9eb9NHaOydUN1u9Fr7eh4eztduYXybfLoWdwrHmwi6K8SLycOD0sueaQJRG73YO
+\unrestrict 43uQjDb7pHg416791BtzeDuR1iiEbb1uS6kdLd9Th4irFXHz5gL7Gr26fxC21Ms
 

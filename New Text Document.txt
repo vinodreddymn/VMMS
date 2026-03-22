@@ -86,4 +86,4 @@ npm install axios react-router-dom socket.io-client zustand @mui/material @emoti
 
 dropdb -U svr_user vmms_db
 createdb -U svr_user vmms_db
-psql -U svr_user -d vmms_db -f vmms_db_backup.sql
+psql -U svr_user -d vmms_db -f vmms_db_backup_22_March_2026.sql
