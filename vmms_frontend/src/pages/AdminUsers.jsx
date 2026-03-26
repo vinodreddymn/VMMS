@@ -10,20 +10,24 @@ import {
   getDepartments, addDepartment, updateDepartment, deleteDepartment,
   getEntrances, addEntrance, updateEntrance, deleteEntrance,
   getVisitorRFIDCardStock, addVisitorRFIDCardStock, markVisitorRFIDCardStockDamaged,
-  getLabourRFIDStock, addLabourRFIDStock, markLabourRFIDStockDamaged
+  getLabourRFIDStock, addLabourRFIDStock, markLabourRFIDStockDamaged,
+  getSMSLogs, updateSMSStatus, deleteSMSLogs, createSMS
 } from '../api/admin.api'
 import { getAdminMediaFiles, uploadMediaFile, deleteMediaFile } from '../api/media.api'
 
 import {
-  Box, Tabs, Tab, Button, Dialog, DialogTitle, DialogContent, DialogActions,
-  TextField, Typography, Stack, Switch, FormControlLabel, MenuItem,
-  CircularProgress, Chip, Paper
+  Box, Tabs, Tab, Button, Dialog, DialogTitle, DialogContent, DialogActions, Grid,
+  TextField, Typography, Stack, Switch, FormControlLabel, MenuItem, Table, TableHead, TableRow, TableCell, TableBody,
+  CircularProgress, Chip, Paper, Checkbox
 } from '@mui/material'
+
+
 
 export default function AdminUsers() {
   const [tab, setTab] = useState(0)
   const [loading, setLoading] = useState(false)
   const [search, setSearch] = useState('')
+  const [smsSearch, setSmsSearch] = useState("");
 
   const withSerial = (arr) => arr.map((r, i) => ({ ...r, sno: i + 1 }))
 
@@ -185,8 +189,20 @@ const fetchVisitorCardStock = async () => {
 }
 
 /* ================= LABOUR RFID TOKEN STOCK ================= */
-const [labourTokenStock, setLabourTokenStock] = useState([])
-const [labourStockInput, setLabourStockInput] = useState('')
+  const [labourTokenStock, setLabourTokenStock] = useState([])
+  const [labourStockInput, setLabourStockInput] = useState('')
+
+  /* ================= SMS LOGS ================= */
+  const [smsLogs, setSmsLogs] = useState([])
+  const [smsLoading, setSmsLoading] = useState(false)
+  const [smsSelected, setSmsSelected] = useState(new Set())
+  const [smsForm, setSmsForm] = useState({
+    recipient: '',
+    recipient_name: '',
+    message: '',
+    event_type: 'MANUAL',
+    related_entity_id: ''
+  })
 
 /* ================= MEDIA FILES ================= */
 const [mediaFiles, setMediaFiles] = useState([])
@@ -220,6 +236,20 @@ const fetchMediaFiles = async () => {
   }
 }
 
+/* ================= SMS LOGS ================= */
+const fetchSMSLogs = async () => {
+  setSmsLoading(true)
+  try {
+    const r = await getSMSLogs({ limit: 200 })
+    setSmsLogs(r.data.logs || [])
+  } catch (err) {
+    console.error('Failed to fetch SMS logs', err)
+    alert(err?.response?.data?.error || 'Failed to fetch SMS logs')
+  } finally {
+    setSmsLoading(false)
+  }
+}
+
   /* ================= LOAD PER TAB ================= */
   useEffect(() => {
     if (tab === 0) { fetchUsers(); fetchRoles() }
@@ -232,6 +262,7 @@ const fetchMediaFiles = async () => {
     if (tab === 7) fetchVisitorCardStock()
     if (tab === 8) fetchLabourTokenStock()
     if (tab === 9) fetchMediaFiles()
+    if (tab === 10) fetchSMSLogs()
   }, [tab])
 
   /* ================= FILTER ================= */
@@ -256,6 +287,84 @@ const fetchMediaFiles = async () => {
     const base = fileBase?.replace(/\/$/, '')
     return base ? `${base}/${src.replace(/^\//, '')}` : `/${src.replace(/^\//, '')}`
   }
+
+  const toggleSmsSelect = (id) => {
+    setSmsSelected(prev => {
+      const next = new Set(prev)
+      next.has(id) ? next.delete(id) : next.add(id)
+      return next
+    })
+  }
+
+  const markSmsStatus = async (status) => {
+    if (!smsSelected.size) return alert('Select at least one SMS')
+    try {
+      await updateSMSStatus({ ids: Array.from(smsSelected), status })
+      await fetchSMSLogs()
+      setSmsSelected(new Set())
+    } catch (err) {
+      console.error('Failed to update SMS status', err)
+      alert(err?.response?.data?.error || 'Failed to update SMS status')
+    }
+  }
+
+  const deleteSms = async () => {
+    if (!smsSelected.size && !confirm('No selection. Delete all SENT messages?')) return
+    try {
+      if (smsSelected.size) {
+        await deleteSMSLogs({ ids: Array.from(smsSelected) })
+      } else {
+        await deleteSMSLogs({})
+      }
+      await fetchSMSLogs()
+      setSmsSelected(new Set())
+    } catch (err) {
+      console.error('Failed to delete SMS logs', err)
+      alert(err?.response?.data?.error || 'Failed to delete SMS logs')
+    }
+  }
+
+  const submitSmsForm = async () => {
+    // 🔒 Validation
+    if (!smsForm.recipient?.trim() || !smsForm.message?.trim()) {
+      alert("Recipient and message are required");
+      return;
+    }
+
+    // 🧹 Clean payload
+    const payload = {
+      recipient: smsForm.recipient.trim(),
+      recipient_name: smsForm.recipient_name?.trim() || undefined,
+      message: smsForm.message.trim(),
+      event_type: "MANUAL",        // ✅ force value
+      related_entity_id: null      // ✅ force null
+    };
+
+    try {
+      await createSMS(payload);
+
+      // 🔄 Reset form (clean reset)
+      setSmsForm({
+        recipient: "",
+        recipient_name: "",
+        message: "",
+        event_type: "MANUAL",
+        related_entity_id: null
+      });
+
+      // 🔄 Refresh logs
+      await fetchSMSLogs();
+
+    } catch (err) {
+      console.error("Failed to create SMS", err);
+
+      alert(
+        err?.response?.data?.error ||
+        err?.message ||
+        "Failed to create SMS"
+      );
+    }
+  };
 
   /* ================= CRUD HANDLERS ================= */
   const saveUser = async () => {
@@ -539,6 +648,7 @@ const fetchMediaFiles = async () => {
         <Tab label="Visitor RFID Stock" />
         <Tab label="Labour RFID Stock" />
         <Tab label="Media Library" />
+        <Tab label="SMS Logs" />
       </Tabs>
 
       <TextField
@@ -1005,6 +1115,208 @@ const fetchMediaFiles = async () => {
           )}
         </Stack>
       )}
+
+      {/* SMS LOGS */}
+      {tab === 10 && (
+      <Box>
+        {/* HEADER */}
+        <Stack
+          direction={{ xs: "column", md: "row" }}
+          justifyContent="space-between"
+          alignItems="center"
+          mb={2}
+          gap={2}
+        >
+          <Typography variant="h6">📩 SMS Logs</Typography>
+
+          <Stack direction="row" spacing={1}>
+            <Button
+              variant="contained"
+              onClick={submitSmsForm}
+              disabled={smsLoading}
+            >
+              Queue SMS
+            </Button>
+            <Button
+              variant="outlined"
+              onClick={fetchSMSLogs}
+              disabled={smsLoading}
+            >
+              Refresh
+            </Button>
+          </Stack>
+        </Stack>
+
+        {/* FORM */}
+        <Paper sx={{ p: 2, mb: 2, borderRadius: 3 }}>
+          <Typography variant="subtitle1" mb={2}>
+            Create SMS
+          </Typography>
+
+          <Grid container spacing={2}>
+            <Grid size={{ xs: 12, md: 4 }}>
+              <TextField
+                fullWidth
+                label="Recipient"
+                value={smsForm.recipient}
+                onChange={(e) =>
+                  setSmsForm({ ...smsForm, recipient: e.target.value })
+                }
+              />
+            </Grid>
+
+            <Grid size={{ xs: 12, md: 4 }}>
+              <TextField
+                fullWidth
+                label="Recipient Name"
+                value={smsForm.recipient_name}
+                onChange={(e) =>
+                  setSmsForm({ ...smsForm, recipient_name: e.target.value })
+                }
+              />
+            </Grid>
+
+            <Grid size={{ xs: 12 }}>
+              <TextField
+                fullWidth
+                multiline
+                minRows={3}
+                label="Message"
+                value={smsForm.message}
+                onChange={(e) =>
+                  setSmsForm({ ...smsForm, message: e.target.value })
+                }
+              />
+            </Grid>
+          </Grid>
+        </Paper>
+
+        {/* ACTION BAR */}
+        <Paper sx={{ p: 2, mb: 2, borderRadius: 3 }}>
+          <Stack
+            direction={{ xs: "column", md: "row" }}
+            spacing={2}
+            justifyContent="space-between"
+            alignItems="center"
+          >
+            <Stack direction="row" spacing={1}>
+              <Button
+                variant="outlined"
+                onClick={() => markSmsStatus("SENT")}
+              >
+                Mark Sent
+              </Button>
+              <Button
+                variant="outlined"
+                onClick={() => markSmsStatus("PENDING")}
+              >
+                Mark Pending
+              </Button>
+              <Button
+                color="error"
+                variant="contained"
+                onClick={deleteSms}
+              >
+                Delete
+              </Button>
+            </Stack>
+
+            <TextField
+              size="small"
+              placeholder="Search..."
+              onChange={(e) => setSmsSearch(e.target.value)}
+            />
+          </Stack>
+        </Paper>
+
+        {/* LOADING */}
+        {smsLoading && (
+          <Box display="flex" justifyContent="center" my={2}>
+            <CircularProgress />
+          </Box>
+        )}
+
+        {/* TABLE */}
+        <Paper sx={{ borderRadius: 3, overflow: "hidden" }}>
+          <Table>
+            <TableHead>
+              <TableRow>
+                <TableCell />
+                <TableCell>Sl No</TableCell>
+                <TableCell>Recipient</TableCell>
+                <TableCell>Event</TableCell>
+                <TableCell>Status</TableCell>
+                <TableCell>Message</TableCell>
+              </TableRow>
+            </TableHead>
+
+            <TableBody>
+              {smsLogs
+                .filter((log) =>
+                  log.message
+                    ?.toLowerCase()
+                    .includes((smsSearch || "").toLowerCase())
+                )
+                .map((log, index) => (
+                  <TableRow key={log.id} hover>
+                    <TableCell>
+                      <Checkbox
+                        checked={smsSelected.has(log.id)}
+                        onChange={() => toggleSmsSelect(log.id)}
+                      />
+                    </TableCell>
+
+                    {/* ✅ Serial Number */}
+                    <TableCell>{index + 1}</TableCell>
+
+                    <TableCell>
+                      <Stack>
+                        <Typography fontWeight={600}>
+                          {log.recipient_name || "—"}
+                        </Typography>
+                        <Typography variant="caption">
+                          {log.recipient}
+                        </Typography>
+                      </Stack>
+                    </TableCell>
+
+                    <TableCell>{log.event_type}</TableCell>
+
+                    <TableCell>
+                      <Chip
+                        label={log.status}
+                        color={
+                          log.status === "SENT"
+                            ? "success"
+                            : log.status === "FAILED"
+                            ? "error"
+                            : "warning"
+                        }
+                        size="small"
+                      />
+                    </TableCell>
+
+                    <TableCell sx={{ maxWidth: 600 }}>
+                      <Typography
+                        variant="body2"
+                        sx={{
+                          overflow: "hidden",
+                          textOverflow: "ellipsis",
+                          display: "-webkit-box",
+                          WebkitLineClamp: 2,
+                          WebkitBoxOrient: "vertical",
+                        }}
+                      >
+                        {log.message}
+                      </Typography>
+                    </TableCell>
+                  </TableRow>
+                ))}
+            </TableBody>
+          </Table>
+        </Paper>
+      </Box>
+    )}
 
       {/* ===== USER DIALOG ===== */}
       {/* USER DIALOG */}

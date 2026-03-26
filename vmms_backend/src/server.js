@@ -9,7 +9,7 @@ import db from "./config/db.js";
 import initSocket from "./sockets/realtime.socket.js";
 import { startGateHealthWatcher } from "./services/gateHealthWatcher.service.js";
 import runMigrations from "./utils/migration.util.js";
-import gammuService from "./services/gammu.service.js";
+import SerialSMSService from "./services/serialSms.service.js";
 
 // -----------------------------------------------------
 // HTTP / HTTPS SERVER SETUP
@@ -54,13 +54,25 @@ if (env.useHttps) {
 startGateHealthWatcher();
 
 
-setInterval(async () => {
-  try {
-    await gammuService.processPending(20);
-  } catch (err) {
-    console.error(err);
-  }
-}, 5000);
+let smsWorkerRunning = false;
+
+if (env.smsServiceEnabled) {
+  logger.info("📡 SMS Service is ENABLED");
+
+  setInterval(async () => {
+    if (smsWorkerRunning) return; // prevent overlap
+
+    smsWorkerRunning = true;
+
+    try {
+      await SerialSMSService.processPending(20);
+    } catch (err) {
+      logger.error("SMS worker error:", err);
+    } finally {
+      smsWorkerRunning = false;
+    }
+  }, 5000);
+}
 
 // Initialize WebSocket
 initSocket(server);
@@ -71,6 +83,9 @@ const PORT = env.port || 5000;
 server.listen(PORT, "0.0.0.0", async () => {
   logger.info(`🚀 VMMS Backend Server running on ${httpsActive ? "HTTPS" : "HTTP"} port ${PORT}`);
   logger.info(`Environment: ${env.nodeEnv}`);
+  if (env.smsServiceEnabled) {
+    logger.info("📨 SMS Queue Processor started");
+  }
 
   // Test database connection
   try {

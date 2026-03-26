@@ -10,12 +10,14 @@ import { evaluateVisitorLock, getSoftLockReason } from "../services/softlock.ser
 // VISITOR ENROLLMENT & CRUD
 // =====================================================
 
-export const createVisitor = async (req, res) => {
+// =====================================================
+// CREATE VISITOR
+// =====================================================
 
+export const createVisitor = async (req, res) => {
   const client = await db.connect();
 
   try {
-
     await client.query("BEGIN");
 
     const visitorData = req.body;
@@ -25,13 +27,16 @@ export const createVisitor = async (req, res) => {
       department_id,
       project_id,
       host_id,
-      allowed_gates = []
+      entrance_id,
+      allowed_gates
     } = visitorData;
 
-    if (!department_id || !project_id || !host_id) {
-      throw new Error("Department, Project and Host are required");
+    // ✅ Required field validation
+    if (!department_id || !project_id || !host_id || !entrance_id) {
+      throw new Error("Department, Project, Host and Entrance are required");
     }
 
+    // ✅ Validate mapping
     await validateVisitorDepartmentMapping(
       client,
       department_id,
@@ -39,44 +44,119 @@ export const createVisitor = async (req, res) => {
       host_id
     );
 
+    // ✅ Attach creator
     visitorData.created_by = userId;
 
+    // ✅ Separate gates from visitor fields
     const { allowed_gates: gates, ...visitorFields } = visitorData;
+      console.log("VISITOR DATA:", visitorData)
+      console.log("VISITOR FIELDS:", visitorFields)
 
+    // ✅ Create visitor
     const visitor = await visitorRepo.create(visitorFields, client);
 
-    // 🔐 Store gate permissions
-    if (gates?.length) {
+    // ✅ Handle gate permissions (IMPORTANT FIX)
+    if (gates !== undefined) {
       await visitorRepo.setVisitorGatePermissions(
         visitor.id,
-        gates,
+        Array.isArray(gates) ? gates : [],
         client
       );
     }
 
     await client.query("COMMIT");
 
-    res.status(201).json({
+    return res.status(201).json({
       success: true,
       message: "Visitor enrolled successfully",
       visitor,
     });
 
   } catch (error) {
-
     await client.query("ROLLBACK");
 
     logger.error("Create Visitor Error:", error);
 
-    res.status(400).json({
+    return res.status(400).json({
       success: false,
-      error: error.message
+      error: error.message || "Failed to create visitor",
     });
 
   } finally {
-
     client.release();
+  }
+};
 
+
+
+// =====================================================
+// UPDATE VISITOR
+// =====================================================
+
+export const updateVisitor = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const updates = req.body;
+    const userId = req.user.id;
+
+    const { allowed_gates, ...visitorUpdates } = updates || {};
+
+    let visitor = null;
+
+    const { status, reason, ...rest } = visitorUpdates;
+      console.log("FILTERED REST:", rest)
+    const hasOtherFields = Object.keys(rest || {}).length > 0;
+
+    // ✅ Update normal fields
+    if (hasOtherFields) {
+      visitor = await visitorRepo.update(id, rest);
+
+      // Re-evaluate lock after update
+      await evaluateVisitorLock(id);
+    }
+
+    // ✅ ALWAYS handle gates independently
+    if (allowed_gates !== undefined) {
+      await visitorRepo.updateVisitorGatePermissions(
+        id,
+        Array.isArray(allowed_gates) ? allowed_gates : []
+      );
+    }
+
+    // ✅ Status update (separate logic)
+    if (status) {
+      visitor = await visitorRepo.updateStatus(
+        id,
+        status,
+        userId,
+        reason || "Manual status update"
+      );
+    }
+
+    // ✅ Nothing to update safeguard
+    if (!hasOtherFields && !status && allowed_gates === undefined) {
+      return res.status(400).json({
+        success: false,
+        error: "No valid fields to update",
+      });
+    }
+
+    // ✅ Fetch latest data
+    const fresh = await visitorRepo.findById(id);
+
+    return res.json({
+      success: true,
+      message: "Visitor updated successfully",
+      visitor: fresh || visitor,
+    });
+
+  } catch (error) {
+    logger.error("Update Visitor Error:", error);
+
+    return res.status(500).json({
+      success: false,
+      error: error.message || "Failed to update visitor",
+    });
   }
 };
 
@@ -149,60 +229,6 @@ export const getVisitorById = async (req, res) => {
   }
 };
 
-// =====================================================
-// UPDATE VISITOR
-// =====================================================
-
-export const updateVisitor = async (req, res) => {
-  try {
-    const { id } = req.params;
-    const updates = req.body;
-    const userId = req.user.id;
-    const { allowed_gates, ...visitorUpdates } = updates;
-
-    let visitor;
-
-    const { status, reason, ...rest } = visitorUpdates || {};
-    const hasOtherFields = Object.keys(rest || {}).length > 0;
-
-    if (hasOtherFields) {
-      visitor = await visitorRepo.update(id, rest);
-
-        if (allowed_gates) {
-          await visitorRepo.updateVisitorGatePermissions(
-            id,
-            allowed_gates
-          );
-        }
-
-        // Re-evaluate lock/unlock immediately after relevant field updates
-        await evaluateVisitorLock(id);
-    }
-
-    if (status) {
-      visitor = await visitorRepo.updateStatus(
-        id,
-        status,
-        userId,
-        reason || "Manual status update"
-      );
-    }
-
-    if (!visitor && !status) {
-      return res.status(400).json({ success: false, error: "No valid fields to update" });
-    }
-
-    if (!visitor) {
-      return res.status(400).json({ success: false, error: "No valid fields to update" });
-    }
-
-    const fresh = await visitorRepo.findById(id);
-    res.json({ success: true, message: "Visitor updated", visitor: fresh || visitor });
-  } catch (error) {
-    logger.error("Update Visitor Error:", error);
-    res.status(500).json({ success: false, error: error.message });
-  }
-};
 
 // =====================================================
 // DOCUMENT MANAGEMENT (KYC)

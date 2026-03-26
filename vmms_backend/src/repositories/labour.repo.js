@@ -176,9 +176,19 @@ export const validateTokenForGateEntry = async (token_uid) => {
 
 export const createManifest = async (supervisor_id, manifest_date) => {
   const query = `
-    INSERT INTO labour_manifests (supervisor_id, manifest_date)
-    VALUES ($1, $2)
-    RETURNING *;
+    WITH inserted AS (
+      INSERT INTO labour_manifests (supervisor_id, manifest_date)
+      VALUES ($1, $2)
+      RETURNING *
+    )
+    SELECT i.*,
+           (
+             SELECT COUNT(*)
+             FROM labour_manifests lm
+             WHERE lm.manifest_date = i.manifest_date
+               AND lm.id <= i.id
+           ) AS daily_sequence
+    FROM inserted i;
   `;
   const result = await db.query(query, [supervisor_id, manifest_date]);
   return result.rows[0];
@@ -186,9 +196,15 @@ export const createManifest = async (supervisor_id, manifest_date) => {
 
 export const getManifestById = async (manifest_id) => {
   const query = `
-    SELECT *
-    FROM labour_manifests
-    WHERE id = $1
+    SELECT lm.*,
+           (
+             SELECT COUNT(*)
+             FROM labour_manifests x
+             WHERE x.manifest_date = lm.manifest_date
+               AND x.id <= lm.id
+           ) AS daily_sequence
+    FROM labour_manifests lm
+    WHERE lm.id = $1
   `;
   const result = await db.query(query, [manifest_id]);
   return result.rows[0];
@@ -207,6 +223,12 @@ export const addLabourToManifest = async (manifest_id, labour_id) => {
 export const getManifest = async (manifest_id) => {
   const query = `
     SELECT m.*, 
+           (
+             SELECT COUNT(*)
+             FROM labour_manifests lm
+             WHERE lm.manifest_date = m.manifest_date
+               AND lm.id <= m.id
+           ) AS daily_sequence,
            v.full_name AS supervisor_name,
            v.pass_no AS supervisor_pass_no,
            v.company_name,
@@ -257,7 +279,13 @@ export const signManifest = async (manifest_id, pdf_path) => {
         printed_at = NOW(),
         pdf_path = $1
     WHERE id = $2
-    RETURNING *;
+    RETURNING *,
+      (
+        SELECT COUNT(*)
+        FROM labour_manifests lm
+        WHERE lm.manifest_date = labour_manifests.manifest_date
+          AND lm.id <= labour_manifests.id
+      ) AS daily_sequence;
   `;
   const result = await db.query(query, [pdf_path, manifest_id]);
   return result.rows[0];
@@ -268,31 +296,74 @@ export const updateManifest = async (manifest_id, data) => {
     UPDATE labour_manifests
     SET signed = COALESCE($1, signed)
     WHERE id = $2
-    RETURNING *;
+    RETURNING *,
+      (
+        SELECT COUNT(*)
+        FROM labour_manifests lm
+        WHERE lm.manifest_date = labour_manifests.manifest_date
+          AND lm.id <= labour_manifests.id
+      ) AS daily_sequence;
   `;
   const result = await db.query(query, [data.signed, manifest_id]);
   return result.rows[0];
 };
 
-export const getManifestsBySupervisor = async (supervisor_id, date) => {
-  if (!date) {
-    const query = `
-      SELECT *
-      FROM labour_manifests
-      WHERE supervisor_id = $1
-      ORDER BY id DESC
-    `;
-    const result = await db.query(query, [supervisor_id]);
-    return result.rows;
-  }
+export const getManifestsBySupervisor = async (supervisor_id, date = null) => {
+  try {
+    let query = `
+      SELECT 
+        m.id,
+        m.supervisor_id,
+        m.manifest_date,
+        m.signed,
+        m.printed_at,
+        m.pdf_path,
+        (
+          SELECT COUNT(*)
+          FROM labour_manifests lm
+          WHERE lm.manifest_date = m.manifest_date
+            AND lm.id <= m.id
+        ) AS daily_sequence,
 
-  const query = `
-    SELECT * FROM labour_manifests
-    WHERE supervisor_id = $1 AND manifest_date = $2
-    ORDER BY id DESC
-  `;
-  const result = await db.query(query, [supervisor_id, date]);
-  return result.rows;
+        -- ???? LABOUR COUNT
+        COUNT(ml.labour_id) AS labour_count
+
+      FROM labour_manifests m
+
+      LEFT JOIN manifest_labours ml 
+        ON ml.manifest_id = m.id
+
+      WHERE m.supervisor_id = $1
+    `;
+
+    const params = [supervisor_id];
+
+    // 🔹 DATE FILTER (SAFE FOR TIMESTAMP)
+    if (date) {
+      query += ` AND DATE(m.manifest_date) = $2`;
+      params.push(date);
+    }
+
+    query += `
+      GROUP BY 
+        m.id,
+        m.supervisor_id,
+        m.manifest_date,
+        m.signed,
+        m.printed_at,
+        m.pdf_path
+
+      ORDER BY m.manifest_date DESC;
+    `;
+
+    const result = await db.query(query, params);
+
+    return result.rows;
+
+  } catch (error) {
+    console.error("Error fetching manifests:", error);
+    throw error;
+  }
 };
 
 export const getManifestsByDate = async (date) => {
@@ -301,6 +372,12 @@ export const getManifestsByDate = async (date) => {
       lm.id, 
       lm.supervisor_id,
       lm.manifest_date,
+      (
+        SELECT COUNT(*)
+        FROM labour_manifests m2
+        WHERE m2.manifest_date = lm.manifest_date
+          AND m2.id <= lm.id
+      ) AS daily_sequence,
       v.full_name as supervisor_name,
       v.company_name,
       v.primary_phone as phone,
@@ -434,5 +511,174 @@ export const getAllLabours = async () => {
     ORDER BY l.created_at DESC
   `;
   const result = await db.query(query);
+  return result.rows;
+};
+export const checkAlerts = async (req, res) => {
+  try {
+    // ===============================
+    // 1. NO-SHOW ALERTS
+    // ===============================
+    const noShows = await labourRepo.getNoShowLabours();
+
+    for (const row of noShows) {
+      const labour = await labourRepo.getLabourById(row.labour_id);
+      const supervisor = await visitorRepo.findById(row.supervisor_id);
+
+      if (!supervisor?.host_id) continue;
+
+      const hostRes = await db.query(
+        `SELECT host_name, phone FROM hosts WHERE id = $1 AND is_active = true`,
+        [supervisor.host_id]
+      );
+
+      const host = hostRes.rows[0];
+      if (!host?.phone) continue;
+
+      await smsService.sendNoShowAlertSMS(
+        host.phone,
+        labour.full_name
+      );
+    }
+
+    // ===============================
+    // 2. TOKEN NOT RETURNED ALERTS
+    // ===============================
+    const pendingReturns = await labourRepo.getUnreturnedTokensAfterCheckout();
+
+    for (const row of pendingReturns) {
+      const labour = await labourRepo.getLabourById(row.labour_id);
+      const supervisor = await visitorRepo.findById(row.supervisor_id);
+
+      if (!supervisor?.host_id) continue;
+
+      const hostRes = await db.query(
+        `SELECT host_name, phone FROM hosts WHERE id = $1 AND is_active = true`,
+        [supervisor.host_id]
+      );
+
+      const host = hostRes.rows[0];
+      if (!host?.phone) continue;
+
+      await smsService.sendTokenNotReturnedAlertSMS(
+        host.phone,
+        labour.full_name
+      );
+    }
+
+    res.json({
+      success: true,
+      noShowCount: noShows.length,
+      tokenNotReturnedCount: pendingReturns.length,
+    });
+
+  } catch (error) {
+    logger.error("Check alerts error:", error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+};
+
+export const markNoShowAlertSent = async (labour_id) => {
+  await db.query(
+    `UPDATE labour_tokens 
+     SET no_show_alert_sent = true 
+     WHERE labour_id = $1 AND status = 'ACTIVE'`,
+    [labour_id]
+  );
+};
+
+export const markReturnAlertSent = async (labour_id) => {
+  await db.query(
+    `UPDATE labour_tokens SET return_alert_sent = true WHERE labour_id = $1 AND status = 'ACTIVE'`,
+    [labour_id]
+  );
+};
+export const getNoShowLabours = async () => {
+  const result = await db.query(`
+    SELECT 
+      lt.labour_id,
+      l.full_name AS labour_name,
+      m.supervisor_id,
+      v.host_id,
+      v.full_name AS supervisor_name,
+      v.company_name AS company,
+      m.id AS manifest_id,
+      m.manifest_date,
+      (
+        SELECT COUNT(*)
+        FROM labour_manifests x
+        WHERE x.manifest_date = m.manifest_date
+          AND x.id <= m.id
+      ) AS daily_sequence,
+      m.printed_at
+    FROM labour_tokens lt
+    JOIN labours l ON l.id = lt.labour_id
+    JOIN manifest_labours ml ON lt.labour_id = ml.labour_id
+    JOIN labour_manifests m ON ml.manifest_id = m.id
+    JOIN visitors v ON m.supervisor_id = v.id
+    WHERE lt.status = 'ACTIVE'
+      AND m.signed = TRUE
+      AND m.printed_at < NOW() - INTERVAL '1 minutes'
+      AND lt.no_show_alert_sent = false
+      AND NOT EXISTS (
+        SELECT 1
+        FROM access_logs al
+        WHERE al.person_id = lt.labour_id
+          AND al.person_type = 'LABOUR'
+          AND al.direction = 'IN'
+          AND al.scan_time > m.printed_at
+      )
+  `);
+
+  return result.rows;
+};
+
+export const getUnreturnedTokensAfterCheckout = async () => {
+  const result = await db.query(`
+    SELECT 
+      lt.labour_id,
+      l.full_name AS labour_name,
+      m.supervisor_id,
+      MIN(v.host_id) AS host_id,
+      v.full_name AS supervisor_name,
+      v.company_name AS company,
+      m.id AS manifest_id,
+      m.manifest_date,
+      (
+        SELECT COUNT(*)
+        FROM labour_manifests x
+        WHERE x.manifest_date = m.manifest_date
+          AND x.id <= m.id
+      ) AS daily_sequence,
+      lt.token_uid,
+      MAX(al.scan_time) AS last_out_time
+    FROM labour_tokens lt
+    JOIN labours l ON l.id = lt.labour_id
+    JOIN manifest_labours ml ON lt.labour_id = ml.labour_id
+    JOIN labour_manifests m ON ml.manifest_id = m.id
+    JOIN visitors v ON m.supervisor_id = v.id
+    JOIN access_logs al 
+      ON al.person_id = lt.labour_id
+     AND al.person_type = 'LABOUR'
+     AND al.direction = 'OUT'
+    WHERE lt.status = 'ACTIVE'
+      AND lt.return_alert_sent = false
+    GROUP BY 
+      lt.labour_id,
+      l.full_name,
+      m.supervisor_id,
+      v.full_name,
+      v.company_name,
+      m.id,
+      m.manifest_date,
+      (
+        SELECT COUNT(*)
+        FROM labour_manifests x
+        WHERE x.manifest_date = m.manifest_date
+          AND x.id <= m.id
+      ),
+      lt.token_uid
+    HAVING MAX(al.scan_time) < NOW() - INTERVAL '1 minutes'
+  `);
+
   return result.rows;
 };

@@ -31,6 +31,7 @@ export default function VisitorsDetail() {
   const [manifests, setManifests] = useState([])
   const [manifestsLoading, setManifestsLoading] = useState(false)
   const [gates, setGates] = useState([])
+  const [entrances, setEntrances] = useState([])
   const [hosts, setHosts] = useState([])
 
   const todayISO = () => new Date().toISOString().split('T')[0]
@@ -51,10 +52,12 @@ export default function VisitorsDetail() {
       .then((res) => {
         const data = res?.data?.data || {}
         setGates(data.gates || [])
+        setEntrances(data.entrances || [])
         setHosts(data.hosts || [])
       })
       .catch(() => {
         setGates([])
+        setEntrances([])
         setHosts([])
       })
   }, [])
@@ -216,14 +219,26 @@ export default function VisitorsDetail() {
         "Compliance issue detected"
       )
       : null;
-  const allowedGateIds = (allowed_gates || []).map(Number)
-  const allowedGateNames =
-    gates
-      .filter(g => allowedGateIds.includes(Number(g.id)))
-      .map(g => g.gate_name)
+  const allowedGateIds = Array.from(new Set((allowed_gates || []).map(Number).filter(Boolean)))
+  const allowedGateNames = Array.from(
+    new Set(
+      gates
+        .filter(g => allowedGateIds.includes(Number(g.id)))
+        .map(g => g.gate_name || `Gate ${g.id}`)
+    )
+  )
   const gateLabels = allowedGateIds.length
     ? (allowedGateNames.length ? allowedGateNames : allowedGateIds.map(g => `Gate ${g}`))
     : ['All Gates']
+  const allowedEntranceNames = Array.from(
+    new Set(
+      gates
+        .filter(g => allowedGateIds.includes(Number(g.id)))
+        .map(g => g.entrance_id)
+        .filter(Boolean)
+        .map(eid => entrances.find(e => Number(e.id) === Number(eid))?.entrance_name || `Entrance ${eid}`)
+    )
+  )
   const hostLookup = hosts.find(h => Number(h.id) === Number(visitor.host_id))
   const hostDisplay =
     visitor.host_name ||
@@ -492,6 +507,12 @@ export default function VisitorsDetail() {
   <SectionCard title="Gate Permissions">
 
   <Box display="flex" gap={1} flexWrap="wrap">
+
+  {allowedEntranceNames.length ? (
+    allowedEntranceNames.map((n,i)=>(
+      <Chip key={`entr-${i}`} label={n} color="secondary" variant="outlined"/>
+    ))
+  ) : null}
 
   {gateLabels.map((g,i)=>(
     <Chip key={i} label={g} color="primary" variant="outlined"/>

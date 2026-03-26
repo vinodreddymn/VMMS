@@ -16,12 +16,12 @@ import {
   Divider,
   CircularProgress,
   Stack,
+  Card,
+  CardContent,
 } from '@mui/material'
 import PrintIcon from '@mui/icons-material/Print'
-import {
-  createManifest,
-  getManifestHistoryBySupervisor,
-} from '../api/labour.api'
+
+import { getManifestHistoryBySupervisor } from '../api/labour.api'
 import api from '../api/axios'
 
 export default function LabourManifest() {
@@ -31,165 +31,158 @@ export default function LabourManifest() {
 
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
-  const [success, setSuccess] = useState('')
-  const [lastManifest, setLastManifest] = useState(null)
 
+  // ================= FETCH DATA =================
   const fetchSupervisorData = async () => {
     if (!supervisorInput.trim()) {
-      setError('Please enter Supervisor Visitor ID or Pass No')
-      return
+      return setError('Please enter Supervisor Visitor ID or Pass No')
     }
 
     setLoading(true)
     setError('')
-    setSuccess('')
     setSupervisor(null)
     setManifests([])
-    setLastManifest(null)
 
     try {
-      const supRes = await api.get(`/visitors/${supervisorInput.trim()}`)
-      const supData = supRes?.data?.visitor || supRes?.data?.data
-      if (!supData) throw new Error('Supervisor not found')
+      const res = await api.get(`/visitors/${supervisorInput.trim()}`)
+      const sup = res?.data?.visitor || res?.data?.data
 
-      setSupervisor(supData)
+      if (!sup) throw new Error('Supervisor not found')
 
-      const manifestRes = await getManifestHistoryBySupervisor(supData.id)
-      setManifests(manifestRes?.data?.manifests || [])
+      setSupervisor(sup)
+
+      const historyRes = await getManifestHistoryBySupervisor(sup.id)
+
+      const manifestsWithCount = (historyRes?.data?.manifests || []).map(m => ({
+        ...m,
+        labour_count:
+          m.labour_count ??
+          m.total_labours ??
+          m.labours?.length ??
+          0,
+      }))
+
+      setManifests(manifestsWithCount)
+
     } catch (err) {
       console.error(err)
-      setError(err?.response?.data?.error || 'Invalid Supervisor ID/Pass No or failed to fetch data')
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  const handleGenerateManifest = async () => {
-    if (!supervisor?.id) {
-      setError('Validate supervisor first')
-      return
-    }
-
-    const confirmed = window.confirm(
-      `Generate a new manifest for supervisor ${supervisor.full_name}?`
-    )
-    if (!confirmed) return
-
-    setLoading(true)
-    setError('')
-    setSuccess('')
-
-    try {
-      const res = await createManifest({
-        supervisor_id: supervisor.id,
-      })
-
-      const manifest = res?.data?.manifest || null
-      setLastManifest(manifest)
-      setSuccess(
-        manifest?.manifest_number
-          ? `Manifest ${manifest.manifest_number} generated and saved as PDF.`
-          : 'Manifest generated successfully.'
+      setError(
+        err?.response?.data?.error ||
+        'Invalid Supervisor ID / Failed to fetch data'
       )
-
-      const historyRes = await getManifestHistoryBySupervisor(supervisor.id)
-      setManifests(historyRes?.data?.manifests || [])
-    } catch (err) {
-      console.error(err)
-      setError(err?.response?.data?.error || 'Failed to create manifest')
     } finally {
       setLoading(false)
     }
   }
 
+  // ================= OPEN PDF =================
   const handleOpenPdf = async (manifestId) => {
     try {
-      const res = await api.get(`/labour/manifests/${manifestId}/pdf`, { responseType: 'blob' })
+      const res = await api.get(
+        `/labour/manifests/${manifestId}/pdf`,
+        { responseType: 'blob' }
+      )
+
       const file = new Blob([res.data], { type: 'application/pdf' })
-      const fileURL = URL.createObjectURL(file)
-      window.open(fileURL, '_blank')
+      const url = URL.createObjectURL(file)
+
+      window.open(url, '_blank')
+
     } catch (err) {
       console.error(err)
-      setError(err?.response?.data?.error || 'Failed to open manifest PDF')
+      setError('Failed to open manifest PDF')
     }
+  }
+
+  // ================= DATE FORMATTERS =================
+  const formatDate = (date) => {
+    if (!date) return '-'
+    return new Date(date).toLocaleDateString()
+  }
+
+  const formatTime = (date) => {
+    if (!date) return '-'
+    return new Date(date).toLocaleTimeString()
   }
 
   return (
-    <Container maxWidth="lg" sx={{ py: 3 }}>
-      <Typography variant="h4" fontWeight="bold" sx={{ mb: 3 }}>
-        Labour Manifests
+    <Container maxWidth="xl" sx={{ py: 3 }}>
+      <Typography variant="h4" fontWeight="bold" mb={3}>
+        Manifest History
       </Typography>
 
       <Paper sx={{ p: 3 }}>
-        <Box sx={{ display: 'flex', gap: 2, mb: 2 }}>
+
+        {/* SEARCH */}
+        <Box display="flex" gap={2} mb={2}>
           <TextField
             label="Supervisor Visitor ID / Pass No"
             value={supervisorInput}
             onChange={(e) => setSupervisorInput(e.target.value)}
             fullWidth
           />
-          <Button variant="contained" onClick={fetchSupervisorData} disabled={loading}>
-            {loading ? <CircularProgress size={20} /> : 'Validate & Fetch'}
+
+          <Button
+            variant="contained"
+            onClick={fetchSupervisorData}
+            disabled={loading}
+          >
+            {loading ? <CircularProgress size={20} /> : 'Fetch'}
           </Button>
         </Box>
 
         {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
-        {success && <Alert severity="success" sx={{ mb: 2 }}>{success}</Alert>}
 
+        {/* SUPERVISOR */}
         {supervisor && (
-          <Box sx={{ mb: 2 }}>
-            <Typography variant="h6">Supervisor Details</Typography>
-            <Typography><b>Name:</b> {supervisor.full_name}</Typography>
-            <Typography><b>Phone:</b> {supervisor.primary_phone || '-'}</Typography>
-            <Typography><b>Company:</b> {supervisor.company_name || '-'}</Typography>
-            <Typography><b>Can Register Labours:</b> {supervisor.can_register_labours ? 'Yes' : 'No'}</Typography>
-          </Box>
+          <Card sx={{ mb: 3 }}>
+            <CardContent>
+              <Typography variant="h6">Supervisor Details</Typography>
+              <Typography><b>Name:</b> {supervisor.full_name}</Typography>
+              <Typography><b>Phone:</b> {supervisor.primary_phone || '-'}</Typography>
+              <Typography><b>Company:</b> {supervisor.company_name || '-'}</Typography>
+            </CardContent>
+          </Card>
         )}
 
-        {lastManifest && (
-          <Alert severity="info" sx={{ mb: 2 }}>
-            Last Generated: {lastManifest.manifest_number || lastManifest.id}
-          </Alert>
-        )}
+        <Divider sx={{ mb: 3 }} />
 
-        <Divider sx={{ my: 2 }} />
-
-        {supervisor && (
-          <Box sx={{ mt: 2 }}>
-            <Button
-              variant="contained"
-              color="secondary"
-              onClick={handleGenerateManifest}
-              disabled={loading}
-            >
-              Generate New Manifest
-            </Button>
-          </Box>
-        )}
-
-        <Divider sx={{ my: 3 }} />
-
-        <Typography variant="h6" sx={{ mb: 1 }}>
-          Manifest History
+        <Typography variant="h6" mb={2}>
+          Manifests
         </Typography>
 
-        {!manifests.length ? (
-          <Typography variant="body2">No manifests available for this supervisor.</Typography>
-        ) : (
+        {loading ? (
+          <Box display="flex" justifyContent="center" py={4}>
+            <CircularProgress />
+          </Box>
+        ) : manifests.length > 0 ? (
           <TableContainer>
             <Table size="small">
+
               <TableHead>
                 <TableRow>
-                  <TableCell>Manifest No</TableCell>
-                  <TableCell>Date</TableCell>
-                  <TableCell>Action</TableCell>
+                  <TableCell><b>Manifest No</b></TableCell>
+                  <TableCell><b>Date</b></TableCell>
+                  <TableCell><b>Time Created</b></TableCell>
+                  <TableCell><b>No. of Labours</b></TableCell>
+                  <TableCell><b>Action</b></TableCell>
                 </TableRow>
               </TableHead>
+
               <TableBody>
                 {manifests.map((m) => (
                   <TableRow key={m.id}>
                     <TableCell>{m.manifest_number || m.id}</TableCell>
-                    <TableCell>{m.manifest_date ? new Date(m.manifest_date).toLocaleDateString() : '-'}</TableCell>
+
+                    <TableCell>{formatDate(m.manifest_date)}</TableCell>
+
+                    {/* 🔹 NEW COLUMN */}
+                    <TableCell>{formatTime(m.manifest_date)}</TableCell>
+
+                    <TableCell>
+                      <b>{m.labour_count}</b>
+                    </TableCell>
+
                     <TableCell>
                       <Stack direction="row" spacing={1}>
                         <Button
@@ -202,11 +195,15 @@ export default function LabourManifest() {
                         </Button>
                       </Stack>
                     </TableCell>
+
                   </TableRow>
                 ))}
               </TableBody>
+
             </Table>
           </TableContainer>
+        ) : (
+          supervisor && <Typography>No manifests found.</Typography>
         )}
       </Paper>
     </Container>

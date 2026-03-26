@@ -103,3 +103,16 @@ export const addLabourRFIDStock = (data) =>
 
 export const markLabourRFIDStockDamaged = (id, data) =>
   api.delete(`/admin/rfid-stock/${id}`, { data });
+
+/* ================= SMS LOGS ================= */
+export const getSMSLogs = (params = {}) =>
+  api.get("/admin/sms-logs", { params });
+
+export const updateSMSStatus = (data) =>
+  api.put("/admin/sms-logs/status", data);
+
+export const deleteSMSLogs = (data = {}) =>
+  api.delete("/admin/sms-logs", { data });
+
+export const createSMS = (data) =>
+  api.post("/admin/sms-logs", data);

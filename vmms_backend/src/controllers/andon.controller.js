@@ -299,7 +299,6 @@ export const getEvents = async (req, res) => {
         l.phone,
         NULL::text AS aadhaar_last4,
         sup.enrollment_photo_path AS enrollment_photo_path,
-        sup.enrollment_photo_path AS supervisor_enrollment_photo_path,
         NULL::text AS designation,
         NULL::date AS pass_valid_from,
         NULL::date AS pass_valid_to,
@@ -307,8 +306,10 @@ export const getEvents = async (req, res) => {
         NULL::text AS department_name,
         NULL::text AS host_name,
         g.gate_name,
+        sup.company_name AS company_name,
+        ARRAY[]::text[] AS gate_permissions,
+        NULL::date AS pass_valid_till,
         sup.full_name AS supervisor_name,
-        sup.company_name AS supervisor_company,
         lt.token_uid
       FROM access_logs al
       LEFT JOIN labours l ON al.person_id = l.id AND al.person_type = 'LABOUR'

@@ -388,41 +388,7 @@ export default function VisitorsList() {
           mb: 2
         }}
       >
-        {summaryCards.map((card) => {
-          const Icon = card.icon
-          return (
-            <Paper
-              key={card.key}
-              sx={{
-                p: 2,
-                borderRadius: 2,
-                border: '1px solid #e2e8f0',
-                boxShadow: '0 10px 30px rgba(15,23,42,0.05)',
-                display: 'flex',
-                alignItems: 'center',
-                gap: 1.2
-              }}
-            >
-              <Box
-                sx={{
-                  width: 42,
-                  height: 42,
-                  borderRadius: '12px',
-                  backgroundColor: `${card.color}1A`,
-                  display: 'grid',
-                  placeItems: 'center',
-                  color: card.color
-                }}
-              >
-                <Icon />
-              </Box>
-              <Box>
-                <Typography variant="body2" color="text.secondary" fontWeight={600}>{card.label}</Typography>
-                <Typography variant="h6" fontWeight={800}>{card.value}</Typography>
-              </Box>
-            </Paper>
-          )
-        })}
+
       </Box>
 
       <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', mb: 2 }}>

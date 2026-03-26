@@ -23,12 +23,15 @@ export default function VisitorsForm() {
   const [loading, setLoading] = useState(false)
   const [mastersLoading, setMastersLoading] = useState(true)
   const [errors, setErrors] = useState({})
+  const [formError, setFormError] = useState("")
 
   const [projects, setProjects] = useState([])
   const [departments, setDepartments] = useState([])
   const [visitorTypes, setVisitorTypes] = useState([])
   const [hosts, setHosts] = useState([])
   const [gates, setGates] = useState([])
+  const [entrances, setEntrances] = useState([])
+  const [selectedEntrances, setSelectedEntrances] = useState([])
   const [filteredProjects, setFilteredProjects] = useState([])
   const [filteredHosts, setFilteredHosts] = useState([])
   const [form, setForm] = useState({
@@ -148,6 +151,7 @@ export default function VisitorsForm() {
         setVisitorTypes(data.visitorTypes || [])
         setHosts(data.hosts || [])
         setGates(data.gates || [])
+        setEntrances(data.entrances || [])
       } catch (err) {
         console.error('Failed to load master data', err)
       } finally {
@@ -196,7 +200,9 @@ export default function VisitorsForm() {
           vehicle_model: safe(v.vehicle_model),
           vehicle_color: safe(v.vehicle_color),
           allowed_gates: (res?.data?.allowed_gates || []).map((g) => Number(g)),
+          entrance_id: v.entrance_id ? String(v.entrance_id) : '',
         }))
+        setSelectedEntrances(v.entrance_id ? [String(v.entrance_id)] : [])
       } catch (err) {
         console.error('Failed to load visitor', err)
       } finally {
@@ -212,14 +218,6 @@ export default function VisitorsForm() {
       typeof value === "string" && name !== "email"
         ? value.toUpperCase()
         : value
-
-    if (name === "allowed_gates") {
-      const selected = Array.isArray(value)
-        ? value.map((v) => Number(v))
-        : []
-      setForm(prev => ({ ...prev, allowed_gates: selected }))
-      return
-    }
 
     if (name === "department_id") {
       setForm(prev => ({
@@ -243,11 +241,27 @@ export default function VisitorsForm() {
     setForm(prev => ({ ...prev, [name]: normalizedValue }))
   }
 
+  // Auto derive allowed_gates when entrances change
+  useEffect(() => {
+    const entranceIds = selectedEntrances.length
+      ? selectedEntrances
+      : form.entrance_id
+        ? [String(form.entrance_id)]
+        : []
+
+    const derivedGateIds = gates
+      .filter(g => entranceIds.includes(String(g.entrance_id)))
+      .map(g => Number(g.id))
+
+    setForm(prev => ({ ...prev, allowed_gates: derivedGateIds }))
+  }, [selectedEntrances, form.entrance_id, gates])
+
   const handleBoolChange = (key) => (e) => {
     setForm(prev => ({ ...prev, [key]: e.target.checked }))
   }
 
   const handleSubmit = async () => {
+    setFormError("")
     if (isEdit ? !allowEdit : !allowCreate) {
       alert('You do not have permission to perform this action.')
       return
@@ -265,8 +279,12 @@ export default function VisitorsForm() {
     if (!form.department_id) nextErrors.department_id = 'Department is required'
     if (!form.project_id) nextErrors.project_id = 'Project is required'
     if (!form.host_id) nextErrors.host_id = 'Host is required'
-    if (!form.entrance_id) nextErrors.entrance_id = 'Entrance gate is required'
-    if (!form.allowed_gates?.length) nextErrors.allowed_gates = 'Select at least one allowed gate'
+    const entranceIds = selectedEntrances.length
+      ? selectedEntrances
+      : form.entrance_id
+        ? [String(form.entrance_id)]
+        : []
+    if (!entranceIds.length) nextErrors.entrance_id = 'Entrance is required'
 
     if (!isEdit && !form.pass_no?.trim()) nextErrors.pass_no = 'Pass number is required'
     if (!isEdit && !aadhaar) nextErrors.aadhaar = 'Aadhaar is required'
@@ -307,13 +325,25 @@ export default function VisitorsForm() {
         return
       }
 
+      // ✅ CLEAN PAYLOAD (IMPORTANT FIX)
+      const cleanPayload = Object.fromEntries(
+        Object.entries(form).filter(
+          ([_, v]) => v !== "" && v !== null && v !== undefined
+        )
+      )
+
+      const primaryEntrance = entranceIds[0] || ''
+
       const payload = {
-        ...form,
+        ...cleanPayload,
+        entrance_id: primaryEntrance || null,
         smartphone_allowed: Boolean(form.smartphone_allowed),
         laptop_allowed: Boolean(form.laptop_allowed),
         ops_area_permitted: Boolean(form.ops_area_permitted),
         can_register_labours: Boolean(form.can_register_labours),
-        allowed_gates: (form.allowed_gates || []).map((g) => Number(g)).filter((g) => !Number.isNaN(g)),
+        allowed_gates: (form.allowed_gates || [])
+          .map((g) => Number(g))
+          .filter((g) => !Number.isNaN(g)),
       }
       if (isEdit) {
         await updateVisitor(id, payload)
@@ -327,10 +357,20 @@ export default function VisitorsForm() {
           navigate('/visitors')
         }
       }
-    } catch (err) {
-      console.error(err)
-      alert(err?.response?.data?.error || 'Error saving visitor')
-    } finally {
+    } 
+    
+    catch (err) {
+      console.error("FULL ERROR:", err)
+
+      const message =
+        err?.response?.data?.error ||
+        err?.response?.data?.message ||
+        err?.message ||
+        "Unknown error occurred"
+
+      setFormError(message)
+      alert(message)
+    }finally {
       setLoading(false)
     }
   }
@@ -355,6 +395,12 @@ export default function VisitorsForm() {
 
   return (
   <Box>
+
+  {formError ? (
+    <Alert severity="error" sx={{ mb: 2 }}>
+      {formError}
+    </Alert>
+  ) : null}
 
   {/* ================= HEADER ================= */}
 
@@ -448,6 +494,8 @@ export default function VisitorsForm() {
   name="department_id"
   value={form.department_id}
   onChange={handleChange}
+  error={Boolean(errors.department_id)}
+  helperText={errors.department_id}
   >
   {departments.map(d=>(
   <MenuItem key={d.id} value={d.id}>
@@ -470,6 +518,8 @@ export default function VisitorsForm() {
   }
   onChange={handleChange}
   disabled={!form.department_id}
+  error={Boolean(errors.project_id)}
+  helperText={errors.project_id}
   >
   {filteredProjects.map(p=>(
   <MenuItem key={p.id} value={p.id}>
@@ -492,6 +542,8 @@ export default function VisitorsForm() {
   }
   onChange={handleChange}
   disabled={!form.project_id}
+  error={Boolean(errors.host_id)}
+  helperText={errors.host_id}
   >
   {filteredHosts.map(h=>(
   <MenuItem key={h.id} value={h.id}>
@@ -499,6 +551,41 @@ export default function VisitorsForm() {
   </MenuItem>
   ))}
   </Field>
+
+  <Grid size={{ xs: 12, sm: 6 }}>
+    <TextField
+      select
+      fullWidth
+      label="Entrance(s)"
+      name="entrance_id"
+      value={selectedEntrances.length ? selectedEntrances : (form.entrance_id ? [form.entrance_id] : [])}
+      onChange={(e) => {
+        const vals = Array.isArray(e.target.value) ? e.target.value : [e.target.value]
+        setSelectedEntrances(vals.map(String))
+        setForm(prev => ({ ...prev, entrance_id: vals[0] || '' }))
+      }}
+      SelectProps={{
+        multiple: true,
+        renderValue: (selected) => {
+          const ids = Array.isArray(selected) ? selected : []
+          const names = entrances
+            .filter(e => ids.includes(String(e.id)))
+            .map(e => e.entrance_name || `Entrance ${e.id}`)
+          return names.join(', ')
+        }
+      }}
+      error={Boolean(errors.entrance_id)}
+      helperText={errors.entrance_id || "Select one or more entrances; gates auto-assign."}
+    >
+      {entrances.map((e)=>(
+        <MenuItem key={e.id} value={String(e.id)}>
+          <Checkbox checked={selectedEntrances.includes(String(e.id)) || (!selectedEntrances.length && form.entrance_id === String(e.id))} />
+          <Typography sx={{ ml: 1 }}>{e.entrance_name || `Entrance ${e.id}`}</Typography>
+        </MenuItem>
+      ))}
+    </TextField>
+  </Grid>
+
 
 
   <Field
@@ -655,47 +742,6 @@ export default function VisitorsForm() {
   onChange={handleChange}
   InputLabelProps={{shrink:true}}
   />
-
-  </Grid>
-
-  </SectionCard>
-
-
-
-  {/* ================= GATE PERMISSIONS ================= */}
-
-  <SectionCard title="Gate Permissions">
-
-  <Grid container spacing={2}>
-
-  <Grid size={{ xs: 12, sm: 6 }}>
-    <TextField
-      select
-      fullWidth
-      label="Allowed Gates"
-      name="allowed_gates"
-      value={form.allowed_gates}
-      onChange={handleChange}
-      SelectProps={{
-        multiple: true,
-        renderValue: (selected) => {
-          if (!selected?.length) return "All gates"
-          const names = gates
-            .filter((g) => selected.includes(g.id))
-            .map((g) => g.gate_name || g.name || `Gate ${g.id}`)
-          return names.join(", ")
-        }
-      }}
-      helperText="Select one or more gates. Leave empty for all gates."
-    >
-      {gates.map((g) => (
-        <MenuItem key={g.id} value={g.id}>
-          <Checkbox checked={form.allowed_gates.includes(g.id)} />
-          <Typography sx={{ ml: 1 }}>{g.gate_name || g.name}</Typography>
-        </MenuItem>
-      ))}
-    </TextField>
-  </Grid>
 
   </Grid>
 

@@ -1,6 +1,7 @@
 import express from "express";
 import * as controller from "../controllers/admin.controller.js";
 import * as mediaController from "../controllers/media.controller.js";
+import * as smsController from "../controllers/sms.controller.js";
 import multer from "multer";
 import path from "path";
 import fs from "fs";
@@ -76,6 +77,12 @@ router.delete("/rfid-cards-stock/:id", controller.markVisitorRFIDCardStockDamage
 router.get("/rfid-stock", controller.getLabourRFIDStock);
 router.post("/rfid-stock", controller.addLabourRFIDStock);
 router.delete("/rfid-stock/:id", controller.markLabourRFIDStockDamaged);
+
+/* ================= SMS LOGS ================= */
+router.get("/sms-logs", smsController.listSMSLogs);
+router.post("/sms-logs", smsController.createSMS);
+router.put("/sms-logs/status", smsController.updateSMSStatus);
+router.delete("/sms-logs", smsController.deleteSMSLogs);
 
 /* ================= MEDIA LIBRARY ================= */
 router.get("/media", mediaController.listMediaAdmin);

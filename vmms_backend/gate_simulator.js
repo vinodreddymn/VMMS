@@ -6,7 +6,7 @@ const { Pool } = pkg;
 
 // ---------------- CONFIG ----------------
 const API_BASE = "https://localhost:5000/api/";
-const SCAN_INTERVAL = 60000;
+const SCAN_INTERVAL = 30000;
 const PARALLEL_REQUESTS = 1;
 
 // HTTPS FIX

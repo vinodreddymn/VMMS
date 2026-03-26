@@ -46,6 +46,7 @@ import GateDisplay from "./pages/GateDisplay"
 import AndonDisplay from "./pages/AndonDisplay/AndonDisplay"
 
 import ManualGateEntry from "./pages/ManualGateEntry"
+import TouchGate from "./pages/TouchGate"
 
 /* ================= REPORTS ================= */
 
@@ -90,6 +91,7 @@ export default function App() {
           </ProtectedRoute>
         }
       />
+      <Route path="/gate/touch" element={<TouchGate />} />
 
       {/* ================================================= */}
       {/* PROTECTED APP LAYOUT */}

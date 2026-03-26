@@ -28,6 +28,7 @@ import SecurityIcon from "@mui/icons-material/Security"
 import SyncIcon from "@mui/icons-material/Sync"
 import GroupIcon from "@mui/icons-material/Group"
 import AccountCircleIcon from "@mui/icons-material/AccountCircle"
+import TouchAppIcon from "@mui/icons-material/TouchApp"
 
 /* MENU STRUCTURE */
 
@@ -54,6 +55,7 @@ const menuStructure = [
       { title: "Gate Control", path: "/gate", icon: LoginIcon },
       { title: "Manual Gate Entry", path: "/gate/manual", icon: LoginIcon },
       { title: "Gate Display", path: "/gate/display", icon: TvIcon },
+      { title: "Touch Check-In/Out", path: "/gate/touch", icon: TouchAppIcon },
     ],
   },
   {

@@ -22,7 +22,7 @@ export default function LabourEnrollmentDialog({ open, onClose, onSaved }) {
   const [supervisor, setSupervisor] = useState(null)
 
   const [labours, setLabours] = useState([
-    { full_name: '', phone: '', aadhaar: '', token_uid: '', gender: '', age: '' },
+    { full_name: '', phone: '', aadhaar: '', token_uid: '', gender: '', age: '', photo: null },
   ])
 
   const [loading, setLoading] = useState(false)
@@ -30,6 +30,44 @@ export default function LabourEnrollmentDialog({ open, onClose, onSaved }) {
   const [tokenQuery, setTokenQuery] = useState('')
   const [tokenOptions, setTokenOptions] = useState([])
   const [tokenLoading, setTokenLoading] = useState(false)
+
+  const handlePhotoUpload = (index, file) => {
+    const reader = new FileReader();
+
+    reader.onloadend = () => {
+      handleLabourChange(index, 'photo', reader.result);
+    };
+
+    if (file) reader.readAsDataURL(file);
+  };
+
+  const handleCapturePhoto = async (index) => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+
+      const video = document.createElement('video');
+      video.srcObject = stream;
+      await video.play();
+
+      const canvas = document.createElement('canvas');
+      canvas.width = 200;
+      canvas.height = 200;
+
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(video, 0, 0, 200, 200);
+
+      const imageData = canvas.toDataURL('image/jpeg');
+
+      handleLabourChange(index, 'photo', imageData);
+
+      // stop camera
+      stream.getTracks().forEach(track => track.stop());
+
+    } catch (err) {
+      console.error(err);
+      alert("Camera access denied or not available");
+    }
+  };
 
   const duplicateTokens = useMemo(() => {
     const counts = {}
@@ -55,8 +93,8 @@ export default function LabourEnrollmentDialog({ open, onClose, onSaved }) {
       const data = res?.data?.visitor
 
       const canRegister = Boolean(data?.can_register_labours) || Boolean(data?.allows_labour)
-      if (!data || !canRegister) {
-        throw new Error('Supervisor not authorized for labour registration')
+      if (!data || !canRegister || String(data.status).toUpperCase() !== 'ACTIVE') {
+        throw new Error('Supervisor not authorized or inactive')
       }
 
       setSupervisor(data)
@@ -139,6 +177,7 @@ export default function LabourEnrollmentDialog({ open, onClose, onSaved }) {
     }
 
     // blacklist check by Aadhaar / phone
+    const blacklistHits = []
     try {
       // Backend expects single aadhaar or phone; check each row individually
       for (const row of validRows) {
@@ -150,16 +189,42 @@ export default function LabourEnrollmentDialog({ open, onClose, onSaved }) {
         const res = await blacklistApi.checkBlacklist(payload)
         if (res?.data?.isBlacklisted) {
           const entry = res.data.entry || {}
-          const msg = `Blacklisted entry: ${payload.aadhaar ? `Aadhaar ${payload.aadhaar}` : payload.phone}\nReason: ${
-            entry.reason || 'N/A'
-          }\nType: ${entry.block_type || 'N/A'}`
-          alert(msg)
-          return
+          blacklistHits.push({
+            row,
+            payload,
+            reason: entry.reason || 'N/A',
+            block_type: entry.block_type || 'N/A',
+          })
         }
       }
     } catch (err) {
       console.error('Blacklist check failed', err)
       setError('Could not verify blacklist. Please retry.')
+      return
+    }
+
+    if (blacklistHits.length) {
+      const first = blacklistHits[0]
+      const msg =
+        `Blacklisted entry detected. Registration aborted.\n` +
+        `${first.payload.aadhaar ? `Aadhaar: ${first.payload.aadhaar}` : `Phone: ${first.payload.phone}`}\n` +
+        `Reason: ${first.reason}\nType: ${first.block_type}`
+      alert(msg)
+
+      // Trigger backend flow once to ensure SMS is queued, then abort.
+      try {
+        await labourApi.createLabour({
+          supervisor_id: supervisor.id,
+          full_name: first.row.full_name || 'Blacklisted Labour',
+          phone: first.payload.phone || '',
+          aadhaar: first.payload.aadhaar || '',
+          gender: first.row.gender || null,
+          age: first.row.age ? Number(first.row.age) : null,
+          token_uid: first.row.token_uid || 'BLK-PLACEHOLDER',
+        })
+      } catch {
+        // Ignore; backend will have queued SMS if blacklist matched
+      }
       return
     }
 
@@ -194,10 +259,16 @@ export default function LabourEnrollmentDialog({ open, onClose, onSaved }) {
 
       let manifest = null
       if (createdLabourIds.length) {
+        const photosPayload = validRows.map((labour, idx) => ({
+          labour_id: createdLabourIds[idx],
+          image: labour.photo
+        })).filter(p => p.image);
+
         const manifestRes = await labourApi.createManifest({
           supervisor_id: supervisor.id,
           labour_ids: createdLabourIds,
-        })
+          photos: photosPayload
+        });
         manifest = manifestRes?.data?.manifest || null
       }
 
@@ -254,14 +325,19 @@ export default function LabourEnrollmentDialog({ open, onClose, onSaved }) {
 
   return (
     <Dialog open={open} onClose={handleClose} maxWidth="lg" fullWidth>
-      <DialogTitle>Labour Enrollment</DialogTitle>
 
-      <DialogContent>
-        {/* STEP 1: Supervisor Validation */}
+      {/* ================= HEADER ================= */}
+      <DialogTitle sx={{ fontWeight: 600 }}>
+        Labour Enrollment
+      </DialogTitle>
+
+      <DialogContent dividers>
+
+        {/* ================= STEP 1 ================= */}
         {step === 1 && (
-          <Box>
-            <Typography variant="subtitle1" mb={1}>
-              Enter Supervisor ID / Pass No
+          <Box maxWidth={500} mx="auto">
+            <Typography variant="subtitle1" gutterBottom>
+              Enter Supervisor ID / Pass Number
             </Typography>
 
             <TextField
@@ -279,6 +355,7 @@ export default function LabourEnrollmentDialog({ open, onClose, onSaved }) {
             )}
 
             <Button
+              fullWidth
               variant="contained"
               onClick={validateSupervisor}
               disabled={loading}
@@ -289,114 +366,218 @@ export default function LabourEnrollmentDialog({ open, onClose, onSaved }) {
           </Box>
         )}
 
-        {/* STEP 2: Supervisor + Labour Entry */}
+        {/* ================= STEP 2 ================= */}
         {step === 2 && supervisor && (
           <Box>
-            <Typography variant="h6" mb={1}>
-              Supervisor Details
-            </Typography>
 
-            <Box mb={2}>
+            {/* ===== Supervisor Card ===== */}
+            <Box
+              p={2}
+              mb={3}
+              border="1px solid #e0e0e0"
+              borderRadius={2}
+              bgcolor="#fafafa"
+            >
+              <Typography variant="h6" gutterBottom>
+                Supervisor Details
+              </Typography>
+
               <Typography><b>Name:</b> {supervisor.full_name}</Typography>
               <Typography><b>Company:</b> {supervisor.company_name || '-'}</Typography>
               <Typography><b>Phone:</b> {supervisor.primary_phone}</Typography>
             </Box>
 
-            <Divider sx={{ my: 2 }} />
+            {/* ===== Labour Section ===== */}
+            <Typography variant="h6" gutterBottom>
+              Register Labours
+            </Typography>
 
-            <Typography variant="h6" mb={1}>
-              Register Labours (RFID token required, valid only today)
+            <Typography variant="body2" color="text.secondary" mb={2}>
+              RFID token is mandatory and valid only for today.
             </Typography>
 
             {labours.map((labour, index) => {
-              const tokenValue = String(labour.token_uid || '').trim()
-              const isDuplicate = tokenValue && duplicateTokens.has(tokenValue)
+              const tokenValue = String(labour.token_uid || '').trim();
+
               const usedTokens = new Set(
                 labours
-                  .map((l, i) => (i === index ? '' : String(l.token_uid || '').trim()))
+                  .map((l, i) =>
+                    i === index ? '' : String(l.token_uid || '').trim()
+                  )
                   .filter(Boolean)
-              )
+              );
+
+              const isDuplicate = tokenValue && usedTokens.has(tokenValue);
+
               const availableOptions = tokenOptions.filter(
                 (t) => !usedTokens.has(t) || t === tokenValue
-              )
+              );
 
               return (
-              <Box key={index} display="flex" gap={2} mb={2} alignItems="center">
-                <TextField
-                  label="Full Name"
-                  value={labour.full_name}
-                  onChange={(e) => handleLabourChange(index, 'full_name', e.target.value)}
-                  fullWidth
-                  sx={{ flex: 1 }}
-                />
-                <TextField
-                  select
-                  label="Gender"
-                  value={labour.gender}
-                  onChange={(e) => handleLabourChange(index, 'gender', e.target.value)}
-                  fullWidth
-                  sx={{ flex: 0.6, minWidth: 110 }}
+                <Box
+                  key={index}
+                  p={2}
+                  mb={2}
+                  border="1px solid #ddd"
+                  borderRadius={2}
                 >
-                  <MenuItem value="">Select</MenuItem>
-                  <MenuItem value="Male">Male</MenuItem>
-                  <MenuItem value="Female">Female</MenuItem>
-                  <MenuItem value="Other">Other</MenuItem>
-                </TextField>
-                <TextField
-                  label="Age"
-                  type="number"
-                  value={labour.age}
-                  onChange={(e) => handleLabourChange(index, 'age', e.target.value)}
-                  fullWidth
-                  inputProps={{ min: 15, max: 75 }}
-                  sx={{ flex: 0.5, minWidth: 90 }}
-                />
-                <TextField
-                  label="Phone"
-                  value={labour.phone}
-                  onChange={(e) => handleLabourChange(index, 'phone', e.target.value)}
-                  fullWidth
-                  sx={{ flex: 0.9, minWidth: 140 }}
-                />
-                <TextField
-                  label="Aadhaar"
-                  value={labour.aadhaar}
-                  onChange={(e) => handleLabourChange(index, 'aadhaar', e.target.value)}
-                  fullWidth
-                  sx={{ flex: 0.9, minWidth: 160 }}
-                />
-                <Autocomplete
-                  freeSolo
-                  options={availableOptions}
-                  loading={tokenLoading}
-                  value={labour.token_uid || ''}
-                  onInputChange={(_, value) => {
-                    handleLabourChange(index, 'token_uid', value)
-                    setTokenQuery(value)
-                  }}
-                  renderInput={(params) => (
+
+                  {/* ===== ROW 1 ===== */}
+                  <Box
+                    display="flex"
+                    flexWrap="wrap"
+                    gap={2}
+                    alignItems="center"
+                  >
+
                     <TextField
-                      {...params}
-                      label="RFID Token"
-                      fullWidth
-                      sx={{ flex: 2.2, minWidth: 260 }}
-                      error={Boolean(isDuplicate)}
-                      helperText={
-                        isDuplicate
-                          ? 'This token is already selected for another labour'
-                          : ''
+                      label="Full Name"
+                      value={labour.full_name}
+                      onChange={(e) =>
+                        handleLabourChange(index, 'full_name', e.target.value)
                       }
+                      sx={{ minWidth: 200, flex: 1 }}
                     />
-                  )}
-                />
-                <Button color="error" onClick={() => removeRow(index)}>
-                  Remove
-                </Button>
-              </Box>
-              )
+
+                    <TextField
+                      select
+                      label="Gender"
+                      value={labour.gender}
+                      onChange={(e) =>
+                        handleLabourChange(index, 'gender', e.target.value)
+                      }
+                      sx={{ width: 120 }}
+                    >
+                      <MenuItem value="">Select</MenuItem>
+                      <MenuItem value="Male">Male</MenuItem>
+                      <MenuItem value="Female">Female</MenuItem>
+                      <MenuItem value="Other">Other</MenuItem>
+                    </TextField>
+
+                    <TextField
+                      label="Age"
+                      type="number"
+                      value={labour.age}
+                      onChange={(e) =>
+                        handleLabourChange(index, 'age', e.target.value)
+                      }
+                      inputProps={{ min: 15, max: 75 }}
+                      sx={{ width: 90 }}
+                    />
+
+                    <TextField
+                      label="Phone"
+                      value={labour.phone}
+                      onChange={(e) =>
+                        handleLabourChange(index, 'phone', e.target.value)
+                      }
+                      sx={{ minWidth: 150 }}
+                    />
+
+                    <TextField
+                      label="Aadhaar"
+                      value={labour.aadhaar}
+                      onChange={(e) =>
+                        handleLabourChange(index, 'aadhaar', e.target.value)
+                      }
+                      sx={{ minWidth: 180 }}
+                    />
+                  </Box>
+
+                  {/* ===== ROW 2 ===== */}
+                  <Box
+                    mt={2}
+                    display="flex"
+                    flexWrap="wrap"
+                    gap={2}
+                    alignItems="center"
+                  >
+
+                    {/* RFID */}
+                    <Autocomplete
+                      freeSolo
+                      options={availableOptions}
+                      loading={tokenLoading}
+                      value={labour.token_uid || ''}
+                      onInputChange={(_, value) => {
+                        handleLabourChange(index, 'token_uid', value);
+                        setTokenQuery(value);
+                      }}
+                      sx={{ minWidth: 250, flex: 1 }}
+                      renderInput={(params) => (
+                        <TextField
+                          {...params}
+                          label="RFID Token"
+                          error={Boolean(isDuplicate)}
+                          helperText={
+                            isDuplicate
+                              ? "Token already used in another row"
+                              : ""
+                          }
+                        />
+                      )}
+                    />
+
+                    {/* Photo Section */}
+                    <Box display="flex" alignItems="center" gap={1}>
+
+                      <Button
+                        variant="outlined"
+                        component="label"
+                        size="small"
+                      >
+                        Upload
+                        <input
+                          type="file"
+                          hidden
+                          accept="image/*"
+                          onChange={(e) =>
+                            handlePhotoUpload(index, e.target.files[0])
+                          }
+                        />
+                      </Button>
+
+                      <Button
+                        variant="outlined"
+                        size="small"
+                        onClick={() => handleCapturePhoto(index)}
+                      >
+                        Camera
+                      </Button>
+
+                      {labour.photo && (
+                        <Box
+                          component="img"
+                          src={labour.photo}
+                          alt="preview"
+                          sx={{
+                            width: 50,
+                            height: 50,
+                            objectFit: "cover",
+                            borderRadius: 1,
+                            border: "1px solid #ccc"
+                          }}
+                        />
+                      )}
+                    </Box>
+
+                    {/* Remove */}
+                    <Button
+                      color="error"
+                      onClick={() => removeRow(index)}
+                    >
+                      Remove
+                    </Button>
+
+                  </Box>
+                </Box>
+              );
             })}
 
-            <Button onClick={addRow}>+ Add Another Labour</Button>
+            {/* Add Row */}
+            <Button onClick={addRow} sx={{ mt: 1 }}>
+              + Add Another Labour
+            </Button>
 
             {error && (
               <Typography color="error" variant="body2" mt={2}>
@@ -407,14 +588,21 @@ export default function LabourEnrollmentDialog({ open, onClose, onSaved }) {
         )}
       </DialogContent>
 
+      {/* ================= FOOTER ================= */}
       <DialogActions>
         <Button onClick={handleClose}>Cancel</Button>
+
         {step === 2 && (
-          <Button variant="contained" onClick={handleSubmit} disabled={loading}>
+          <Button
+            variant="contained"
+            onClick={handleSubmit}
+            disabled={loading}
+          >
             Submit Labours
           </Button>
         )}
       </DialogActions>
+
     </Dialog>
-  )
+  );
 }

@@ -12,6 +12,9 @@ const env = {
   sslPfxPath: process.env.SSL_PFX_PATH,
   sslPfxPassphrase: process.env.SSL_PFX_PASSPHRASE,
 
+
+  smsServiceEnabled: process.env.SMS_SERVICE_ENABLED === "true",
+
   db: {
     host: process.env.DB_HOST,
     port: process.env.DB_PORT,

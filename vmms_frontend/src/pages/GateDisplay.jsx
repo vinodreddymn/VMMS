@@ -885,128 +885,181 @@ export default function GateDisplay() {
 
 /* ---------------- STYLES ---------------- */
 const styles = {
-
+  /* ================= ROOT ================= */
 
   root: {
-    height: '100vh',
-    width: '100vw',
-    overflow: 'hidden',
-    color: '#0f172a',
+    minHeight: '100vh',
+    width: '100%',
+    overflowX: 'hidden',
 
-    background:
-      'radial-gradient(1200px 600px at 10% 0%, rgba(59,130,246,0.18), transparent 60%), radial-gradient(900px 520px at 90% 10%, rgba(16,185,129,0.16), transparent 55%), linear-gradient(180deg, #0a0f24 0%, #0b1c38 60%, #0b2448 100%)',
+    color: '#e2e8f0',
 
-    padding: '10px 14px',
+    background: `
+      radial-gradient(circle at 20% 20%, rgba(59,130,246,0.25), transparent 40%),
+      radial-gradient(circle at 80% 10%, rgba(16,185,129,0.2), transparent 40%),
+      radial-gradient(circle at 50% 90%, rgba(168,85,247,0.18), transparent 40%),
+      #020617
+    `,
+
     display: 'flex',
     flexDirection: 'column',
+
+    px: { xs: 1.5, sm: 2, md: 3 },
+    py: { xs: 1.5, sm: 2 },
   },
 
-
-
+  /* ================= HEADER / BANNER ================= */
 
   banner: {
-    height: '100px',
-    borderRadius: 12,
+    minHeight: { xs: 70, md: 90 },
 
-    padding: '10px 18px',
-    marginTop: '10px', 
+    px: { xs: 2, md: 3 },
+    py: { xs: 1.5, md: 2 },
 
-    color: '#fff',
+    borderRadius: 3,
 
-    display: 'flex',
+    display: 'grid',
+    gridTemplateColumns: {
+      xs: '1fr',
+      md: '1fr auto 1fr'
+    },
+
+    rowGap: { xs: 1, md: 0 },
+
     alignItems: 'center',
-    justifyContent: 'space-between',
 
-    background:
-      'linear-gradient(135deg, rgba(30,41,59,0.95), rgba(15,23,42,0.95))',
+    background: 'rgba(15,23,42,0.65)',
+    backdropFilter: 'blur(12px)',
 
     border: '1px solid rgba(255,255,255,0.08)',
-
-    boxShadow: '0 8px 22px rgba(0,0,0,0.35)',
+    boxShadow: '0 15px 40px rgba(0,0,0,0.45)',
   },
 
   bannerTitle: {
     fontWeight: 800,
-    fontSize: 22,
+    fontSize: { xs: 18, md: 22 },
     letterSpacing: 1,
     textTransform: 'uppercase',
   },
 
   bannerSubtitle: {
-    fontSize: 12,
-    opacity: 0.85,
+    fontSize: { xs: 11, md: 13 },
+    opacity: 0.75,
   },
 
-  /* MAIN CONTENT AREA */
+  /* ================= MAIN CONTENT ================= */
 
   content: {
     flex: 1,
-    maxWidth: '1840px',
-    margin: '10px auto 0 auto',
+    width: '100%',
+    maxWidth: '1800px',
+    mx: 'auto',
+
+    mt: { xs: 1.5, md: 2 },
+
     display: 'flex',
     flexDirection: 'column',
-    justifyContent: 'space-between',
+    gap: { xs: 1.5, md: 2 },
   },
 
-  /* GRID ROW */
+  /* ================= RESPONSIVE GRID ================= */
 
   gridRow: {
-    height: 'calc(100vh - 120px)', // header + margins
     display: 'grid',
-    gridTemplateColumns: '1.2fr 1fr 1fr',
-    gap: '14px',
+    gap: { xs: 1.5, md: 2 },
+
+    gridTemplateColumns: {
+      xs: '1fr',
+      sm: '1fr',
+      md: '1fr 1fr',
+      lg: '1.2fr 1fr 1fr',
+    },
+
+    alignItems: 'stretch',
   },
 
-  /* CARDS */
+  /* ================= CARD SYSTEM ================= */
+
+  cardBase: {
+    borderRadius: 3,
+    p: { xs: 2, md: 2.5 },
+    height: '100%',
+    display: 'flex',
+    flexDirection: 'column',
+    overflow: 'hidden',
+  },
 
   cardLight: {
-    padding: '16px',
-    background: 'rgba(255,255,255,0.96)',
-    borderRadius: 12,
+    background: 'rgba(255,255,255,0.95)',
+    color: '#0f172a',
     border: '1px solid rgba(15,23,42,0.08)',
-    boxShadow: '0 10px 26px rgba(15,23,42,0.10)',
-    height: '100%',
-    overflow: 'hidden',
+    boxShadow: '0 10px 25px rgba(0,0,0,0.06)',
   },
 
   cardDark: {
-    padding: '16px',
-    background: 'rgba(12,18,40,0.92)',
-    color: '#e2e8f0',
-    borderRadius: 12,
-    border: '1px solid rgba(148,163,184,0.18)',
-    boxShadow: '0 10px 28px rgba(0,0,0,0.45)',
-    height: '100%',
-    overflow: 'hidden',
+    background: 'rgba(12,18,40,0.75)',
+    backdropFilter: 'blur(10px)',
+    border: '1px solid rgba(255,255,255,0.08)',
+    boxShadow: '0 20px 50px rgba(0,0,0,0.45)',
   },
 
-  /* CAMERA PANEL */
+  cardGlass: {
+    background: 'rgba(255,255,255,0.06)',
+    backdropFilter: 'blur(14px)',
+    border: '1px solid rgba(255,255,255,0.12)',
+    boxShadow: '0 25px 60px rgba(0,0,0,0.5)',
+  },
+
+  /* ================= CAMERA ================= */
 
   cameraPanel: {
-    height: '100%',
-    borderRadius: 10,
+    flex: 1,
+    borderRadius: 3,
     overflow: 'hidden',
+
     background: '#000',
-    border: '2px solid rgba(255,255,255,0.12)',
+    border: '1px solid rgba(255,255,255,0.15)',
+
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 
-  /* VISITOR PHOTO */
+  /* ================= PHOTOS ================= */
 
-  visitorPhoto: {
-    width: 130,
-    height: 130,
-    borderRadius: 10,
-    objectFit: 'cover',
-    border: '3px solid #22c55e',
+  photoBox: {
+    width: '100%',
+    maxWidth: { xs: 160, md: 220 },
+
+    aspectRatio: '1 / 1',
+
+    borderRadius: 2,
+    overflow: 'hidden',
+
+    border: '2px solid rgba(255,255,255,0.15)',
+
+    '& img': {
+      width: '100%',
+      height: '100%',
+      objectFit: 'cover',
+      transition: '0.3s ease',
+    },
+
+    '& img:hover': {
+      transform: 'scale(1.05)',
+    },
   },
 
-  /* STATUS BOX */
+  /* ================= STATUS ================= */
 
   statusBox: {
-    padding: '12px',
-    borderRadius: 10,
-    fontSize: 16,
+    px: 2,
+    py: 1.2,
+    borderRadius: 2,
+
+    fontSize: { xs: 13, md: 15 },
     fontWeight: 700,
+
     textAlign: 'center',
   },
 
@@ -1025,33 +1078,78 @@ const styles = {
     color: '#fff',
   },
 
-  /* ENTRY / EXIT INDICATOR */
+  /* ================= GATE INDICATOR ================= */
 
   gateIndicator: {
-    fontSize: 36,
+    fontSize: { xs: 22, md: 32 },
     fontWeight: 900,
     letterSpacing: 2,
+
     textAlign: 'center',
-    padding: '8px',
-    borderRadius: 10,
-    background:
-      'linear-gradient(135deg, rgba(59,130,246,0.95), rgba(37,99,235,0.95))',
+
+    px: 2,
+    py: 1,
+
+    borderRadius: 2,
+
+    background: 'linear-gradient(135deg,#3b82f6,#2563eb)',
     color: '#fff',
   },
 
-  /* FOOTER */
+  /* ================= TYPOGRAPHY ================= */
+
+  label: {
+    fontSize: 11,
+    textTransform: 'uppercase',
+    letterSpacing: 1,
+    opacity: 0.6,
+  },
+
+  value: {
+    fontSize: { xs: 13, md: 15 },
+    fontWeight: 500,
+  },
+
+  /* ================= FOOTER ================= */
 
   footerBar: {
-    height: '36px',
-    marginTop: '6px',
-    padding: '6px 14px',
-    borderRadius: 8,
-    background: 'rgba(15,23,42,0.85)',
-    color: '#e2e8f0',
-    fontSize: 12,
+    mt: 1,
+
+    px: 2,
+    py: 1,
+
+    borderRadius: 2,
+
     display: 'flex',
-    justifyContent: 'space-between',
+    flexWrap: 'wrap',
+    gap: 1,
+
+    justifyContent: {
+      xs: 'center',
+      md: 'space-between'
+    },
+
     alignItems: 'center',
-    flexShrink: 0,
+
+    background: 'rgba(15,23,42,0.6)',
+    backdropFilter: 'blur(8px)',
+
+    border: '1px solid rgba(255,255,255,0.08)',
+
+    fontSize: 12,
+  },
+
+  /* ================= UTILITIES ================= */
+
+  flexCenter: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  sectionTitle: {
+    fontSize: { xs: 14, md: 16 },
+    fontWeight: 700,
+    mb: 1,
   },
 }

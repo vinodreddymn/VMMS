@@ -1,6 +1,7 @@
 import * as labourRepo from "../repositories/labour.repo.js";
 import * as visitorRepo from "../repositories/visitor.repo.js";
 import smsService from "../services/sms.service.js";
+import * as blacklistRepo from "../repositories/blacklist.repo.js";
 import PDFDocument from "pdfkit";
 import QRCode from "qrcode";
 import fs from "fs";
@@ -8,10 +9,65 @@ import path from "path";
 import logger from "../utils/logger.util.js";
 import * as encryption from "../utils/encryption.util.js";
 import { getVisitorManifestPaths } from "../utils/visitor-storage.util.js";
+import db from "../config/db.js";
+
 
 // =====================================================
 // HELPERS
 // =====================================================
+
+
+const saveLabourPhotos = async ({
+  manifest,
+  labours,
+  photos,
+  supervisor_id
+}) => {
+  if (!photos || !photos.length) return [];
+
+  const manifestNumber = formatManifestNumber(manifest);
+
+  const { absolutePath } = await getVisitorManifestPaths(
+    supervisor_id,
+    "dummy.pdf"
+  );
+
+  const folderPath = path.dirname(absolutePath);
+  await fs.promises.mkdir(folderPath, { recursive: true });
+
+  // Map photos by labour_id
+  const photoMap = {};
+  for (const p of photos) {
+    photoMap[p.labour_id] = p.image;
+  }
+
+  const savedPhotos = [];
+
+  for (let i = 0; i < labours.length; i++) {
+    const labour = labours[i];
+    const base64 = photoMap[labour.id];
+
+    if (!base64) continue;
+
+    const serial = String(i + 1).padStart(2, "0");
+    const fileName = `${manifestNumber}_${serial}.jpg`;
+    const filePath = path.join(folderPath, fileName);
+
+    const imageBuffer = Buffer.from(
+      base64.replace(/^data:image\/\w+;base64,/, ""),
+      "base64"
+    );
+
+    await fs.promises.writeFile(filePath, imageBuffer);
+
+    savedPhotos.push({
+      labour_id: labour.id,
+      fileName
+    });
+  }
+
+  return savedPhotos;
+};
 
 const formatManifestNumber = (manifest) => {
   const rawDate = manifest?.manifest_date;
@@ -28,8 +84,23 @@ const formatManifestNumber = (manifest) => {
     datePart = digits.length === 8 ? digits : "NA";
   }
 
-  const idPart = String(manifest.id).padStart(6, "0");
-  return `MF-${datePart}-${idPart}`;
+  // Prefer a precomputed per-day sequence so numbers reset daily: 001, 002, ...
+  const sequence =
+    manifest?.daily_sequence ??
+    manifest?.manifest_sequence ??
+    manifest?.seq ??
+    null;
+
+  // Fallback to global id if sequence is missing (should not happen after repo updates)
+  const counter = sequence && Number.isFinite(Number(sequence))
+    ? Number(sequence)
+    : Number(manifest?.id);
+
+  const counterPart = Number.isFinite(counter)
+    ? String(counter).padStart(3, "0")
+    : "000";
+
+  return `MF-${datePart}-${counterPart}`;
 };
 
 const withManifestNumber = (manifest) => {
@@ -65,7 +136,7 @@ Total Labours: ${labours.length}`;
     const doc = new PDFDocument({
       size: "A5",
       layout: "landscape",
-      margins: { top: 32, bottom: 0, left: 38, right: 38 }
+      margins: { top: 32, bottom: 0, left: 20, right: 20 }
     });
 
     const out = fs.createWriteStream(absoluteFilePath);
@@ -334,6 +405,7 @@ Total Labours: ${labours.length}`;
 
 };
 
+
 const generateAndPersistManifestPdf = async (manifest_id) => {
   const manifest = await labourRepo.getManifest(manifest_id);
   if (!manifest) return null;
@@ -376,6 +448,75 @@ export const createLabour = async (req, res) => {
 
     if (!token_uid) {
       return res.status(400).json({ success: false, error: "RFID token is required" });
+    }
+
+    // Blacklist check on Aadhaar / phone
+    const aadhaarTrim = aadhaar ? String(aadhaar).trim() : "";
+    const phoneTrim = phone ? String(phone).trim() : "";
+    let blacklistHit = null;
+    if (aadhaarTrim) {
+      blacklistHit = await blacklistRepo.checkByAadhaar(aadhaarTrim);
+    }
+    if (!blacklistHit && phoneTrim) {
+      blacklistHit = await blacklistRepo.checkByPhone(phoneTrim);
+    }
+
+    if (blacklistHit) {
+      // Notify supervisor's host only
+      if (supervisor?.host_id) {
+        const hostRes = await db.query(
+          `SELECT host_name, phone FROM hosts WHERE id = $1 AND is_active = true LIMIT 1`,
+          [supervisor.host_id]
+        );
+        const hostPhone = hostRes.rows[0]?.phone ? String(hostRes.rows[0].phone).trim() : null;
+        const hostName = hostRes.rows[0]?.host_name || "Host";
+        if (hostPhone) {
+          let identifierDetails = "Unknown";
+
+          if (blacklistHit?.phone && phoneTrim) {
+            identifierDetails = `Phone: ${phoneTrim}`;
+          } else if (blacklistHit?.aadhaar && aadhaarTrim) {
+            identifierDetails = `Aadhaar: ${aadhaarTrim}`;
+          } else {
+            // fallback if DB doesn’t specify type
+            if (phoneTrim && aadhaarTrim) {
+              identifierDetails = `Phone: ${phoneTrim}, Aadhaar: ${aadhaarTrim}`;
+            } else if (phoneTrim) {
+              identifierDetails = `Phone: ${phoneTrim}`;
+            } else if (aadhaarTrim) {
+              identifierDetails = `Aadhaar: ${aadhaarTrim}`;
+            }
+          }
+          const reason = blacklistHit.reason || blacklistHit.block_type || "Blacklisted person";
+          const ts = new Date().toLocaleString("en-IN", {
+            day: "2-digit",
+            month: "short",
+            year: "numeric",
+            hour: "2-digit",
+            minute: "2-digit",
+            hour12: true,
+          });
+          const message =
+            `Blacklist Alert\n` +
+            `Identifier - ${identifierDetails}\n` +
+            `Supervisor: ${supervisor.full_name || supervisor.id || "-"}\n` +
+            `Supervisor Phone: ${supervisor.primary_phone || "-"}\n` +
+            `Time: ${ts}\n` +
+            `Reason: ${reason}`;
+          await smsService.queueSMS({
+            phone: hostPhone,
+            message,
+            eventType: "BLACKLIST_ALERT",
+            relatedEntityId: supervisor.id || null,
+            recipientName: hostName,
+          });
+        }
+      }
+
+      return res.status(403).json({
+        success: false,
+        error: "Blacklisted Aadhaar/Phone. Alert triggered.",
+      });
     }
 
     // Validate RFID token before creating labour to avoid orphan records
@@ -440,51 +581,216 @@ export const getBySupervisor = async (req, res) => {
 
 export const createManifest = async (req, res) => {
   try {
-    const { supervisor_id, labour_ids } = req.body;
+    const { supervisor_id, labour_ids, photos } = req.body;
+
+    /* ================= VALIDATE SUPERVISOR ================= */
 
     const supervisor = await resolveSupervisor(supervisor_id);
     if (!supervisor) {
-      return res.status(404).json({ success: false, error: "Supervisor not found" });
+      return res.status(404).json({
+        success: false,
+        error: "Supervisor not found"
+      });
     }
 
+    // Pre-fetch host details (used for alerts)
+    let host = null;
+    if (supervisor.host_id) {
+      const result = await db.query(
+        `SELECT id, host_name, phone 
+         FROM hosts 
+         WHERE id = $1 AND is_active = true`,
+        [supervisor.host_id]
+      );
+      host = result.rows[0] || null;
+    }
+
+    /* ================= PREPARE LABOUR LIST ================= */
+
     let manifestLabourIds = [];
+
     if (Array.isArray(labour_ids) && labour_ids.length > 0) {
-      manifestLabourIds = [...new Set(labour_ids.map((id) => Number(id)).filter(Boolean))];
+      manifestLabourIds = [
+        ...new Set(labour_ids.map(id => Number(id)).filter(Boolean))
+      ];
     } else {
-      // Auto-include only currently active token holders for this supervisor
       const supervisorLabours = await labourRepo.getLabours(supervisor.id);
+
       manifestLabourIds = supervisorLabours
-        .filter((row) => row.token_uid)
-        .map((row) => Number(row.id));
+        .filter(l => l.token_uid)
+        .map(l => Number(l.id));
+
       manifestLabourIds = [...new Set(manifestLabourIds)];
     }
 
     if (!manifestLabourIds.length) {
       return res.status(400).json({
         success: false,
-        error: "No active labours available to generate manifest",
+        error: "No active labours available to generate manifest"
       });
     }
 
-    const today = new Date().toISOString().split("T")[0];
-    const manifest = await labourRepo.createManifest(supervisor.id, today);
+    /* ================= CREATE MANIFEST ================= */
 
-    for (const labour_id of manifestLabourIds) {
-      await labourRepo.addLabourToManifest(manifest.id, labour_id);
+    const today = new Date().toISOString().split("T")[0];
+
+    const manifest = await labourRepo.createManifest(
+      supervisor.id,
+      today
+    );
+
+    /* ================= ADD LABOURS ================= */
+
+    await Promise.all(
+      manifestLabourIds.map(labour_id =>
+        labourRepo.addLabourToManifest(manifest.id, labour_id)
+      )
+    );
+
+    /* ================= FETCH LABOURS ================= */
+
+    const labours = await labourRepo.getManifestLabours(manifest.id);
+
+    /* ================= BLACKLIST ALERTS ================= */
+    try {
+      if (host?.phone) {
+        for (const labour of labours) {
+          const phone = labour.phone ? String(labour.phone).trim() : null;
+          let aadhaar = null;
+          if (labour.aadhaar_encrypted) {
+            try {
+              aadhaar = encryption.decryptAadhaar(labour.aadhaar_encrypted);
+            } catch {}
+          }
+
+          let hit = null;
+          let hitSource = null;
+          if (aadhaar) {
+            hit = await blacklistRepo.checkByAadhaar(aadhaar);
+            if (hit) hitSource = "aadhaar";
+          }
+          if (!hit && phone) {
+            hit = await blacklistRepo.checkByPhone(phone);
+            if (hit) hitSource = "phone";
+          }
+
+          if (hit) {
+            const reason = hit.reason || hit.block_type || "Blacklisted person";
+            const identifier =
+              hitSource === "phone" ? phone || "Unknown" : aadhaar || phone || "Unknown";
+            const ts = new Date().toLocaleString("en-IN", {
+              day: "2-digit",
+              month: "short",
+              year: "numeric",
+              hour: "2-digit",
+              minute: "2-digit",
+              hour12: true,
+            });
+          const message =
+            `Blacklist Alert: ${identifier} attempted labour registration.\n` +
+            `Supervisor: ${supervisor?.full_name || supervisor?.id || "-"}\n` +
+            `Supervisor Phone: ${supervisor?.primary_phone || "-"}\n` +
+            `Time: ${ts}\n` +
+            `Reason: ${reason}`;
+            await smsService.queueSMS({
+              phone: String(host.phone).trim(),
+              message,
+              eventType: "BLACKLIST_ALERT",
+              relatedEntityId: labour.id || null,
+              recipientName: host.host_name || "Host",
+            });
+          }
+        }
+      }
+    } catch (err) {
+      logger.error("Blacklist alert processing failed:", err);
     }
 
-    const updatedManifest = await generateAndPersistManifestPdf(manifest.id);
+    /* ================= SAVE PHOTOS ================= */
+
+    const savedPhotos = await saveLabourPhotos({
+      manifest,
+      labours,
+      photos,
+      supervisor_id: supervisor.id
+    });
+
+    /* ================= UPDATE DB ================= */
+
+    await Promise.all(
+      savedPhotos.map(photo =>
+        db.query(
+          `UPDATE manifest_labours 
+           SET photo_path = $1 
+           WHERE manifest_id = $2 AND labour_id = $3`,
+          [photo.fileName, manifest.id, photo.labour_id]
+        )
+      )
+    );
+
+    /* ================= GENERATE PDF ================= */
+
+    const updatedManifest = await generateAndPersistManifestPdf(
+      manifest.id
+    );
+
+    /* ================= SMS NOTIFICATION ================= */
+
+    try {
+      const now = new Date();
+      const formattedDateTime = now.toLocaleString("en-IN", {
+        day: "2-digit",
+        month: "short",
+        year: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+        hour12: true
+      });
+
+      const message =
+        `Manifest Created: ${updatedManifest.manifest_number}\n` +
+        `Supervisor: ${supervisor.full_name}\n` +
+        `Company: ${supervisor.company_name || "-"}\n` +
+        `Total Labours: ${labours.length}\n` +
+        `Created At: ${formattedDateTime}`;
+
+      if (!host) {
+        logger.warn(`SMS NOT SENT: Host not found (ID ${supervisor.host_id})`);
+      } else if (!host.phone) {
+        logger.warn(`SMS NOT SENT: Host phone missing (ID ${host.id})`);
+      } else {
+        await smsService.queueSMS({
+          phone: String(host.phone).trim(),
+          message,
+          eventType: "MANIFEST_CREATED",
+          relatedEntityId: manifest.id,
+          recipientName: host.host_name
+        });
+      }
+
+    } catch (err) {
+      logger.error("Manifest SMS failed:", err);
+    }
+
+    /* ================= RESPONSE ================= */
 
     res.json({
       success: true,
       manifest: updatedManifest,
-      message: "Manifest generated and saved as PDF",
+      message: "Manifest generated successfully with photos"
     });
+
   } catch (error) {
     logger.error("Create manifest error:", error);
-    res.status(500).json({ success: false, error: error.message });
+
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
   }
 };
+
+
 
 export const getTodayManifestBySupervisor = async (req, res) => {
   try {

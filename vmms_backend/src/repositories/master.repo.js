@@ -62,10 +62,19 @@ export const getHosts = async () => {
 
 export const getGates = async () => {
   const { rows } = await db.query(
-    `SELECT id, gate_name 
+    `SELECT id, gate_name, entrance_id 
      FROM gates 
      WHERE is_active = true 
      ORDER BY gate_name`
+  );
+  return rows;
+};
+
+export const getEntrances = async () => {
+  const { rows } = await db.query(
+    `SELECT id, entrance_name 
+     FROM entrances 
+     ORDER BY entrance_name`
   );
   return rows;
 };

@@ -68,16 +68,40 @@ class SMSService {
     });
   }
 
-  async sendNoShowAlertSMS(hostPhone, labourName) {
-    const message = `No-Show Alert: ${labourName} has not entered within expected time.`;
+    async sendNoShowAlertSMS(hostPhone, data = {}) {
+      try {
+        const {
+          labour_name,
+          supervisor_name,
+          company,
+          manifest_id,
+          manifest_number,
+          printed_at,
+          host_name
+        } = data;
 
-    return this.queueSMS({
-      phone: hostPhone,
-      message,
-      eventType: "NO_SHOW_ALERT",
-      recipientName: labourName,
-    });
-  }
+        const manifestLabel = manifest_number || manifest_id || "N/A";
+        const companyLabel = company || "-";
+
+        const message =
+          `No-Show Alert: Labour ${labour_name} has not entered within expected time.\n` +
+          `Manifest: ${manifestLabel}\n` +
+          `Supervisor: ${supervisor_name}\n` +
+          `Company: ${companyLabel}\n` +
+          `Created At: ${printed_at}`;
+
+        return await this.queueSMS({
+          phone: hostPhone,
+          message,
+          eventType: "NO_SHOW_ALERT",
+          recipientName: host_name || supervisor_name,
+        });
+
+      } catch (error) {
+        logger.error("sendNoShowAlertSMS failed:", error);
+        return { success: false, error: error.message };
+      }
+    }
 
   async sendBlacklistAlertSMS(phone, personName, reason) {
     const message = `SECURITY ALERT: ${personName} attempted entry. Reason: ${reason}`;
@@ -90,6 +114,89 @@ class SMSService {
     });
   }
 
+
+
+  async sendManifestCreatedSMS(
+    hostPhone,
+    hostName,
+    manifestNumber,
+    supervisorName,
+    companyName,
+    labourCount,
+    dateTime
+  ) {
+    try {
+      // 🔹 Basic validation
+      if (!hostPhone) {
+        throw new Error("Host phone is required for manifest SMS");
+      }
+
+      // 🔹 Normalize values
+      const safeHostName = hostName || "Host";
+      const safeSupervisor = supervisorName || "N/A";
+      const safeCompany = companyName || "-";
+      const safeCount = labourCount ?? 0;
+      const safeTime = dateTime || new Date().toLocaleString("en-IN");
+
+      // 🔹 Clean message (no extra spaces/indentation)
+      const message =
+        `Manifest Created: ${manifestNumber}\n` +
+        `Supervisor: ${safeSupervisor}\n` +
+        `Company: ${safeCompany}\n` +
+        `Total Labours: ${safeCount}\n` +
+        `Created At: ${safeTime}`;
+
+      // 🔹 Queue SMS
+      return await this.queueSMS({
+        phone: String(hostPhone).trim(),
+        message,
+        eventType: "MANIFEST_CREATED",
+        recipientName: safeHostName,
+      });
+
+    } catch (error) {
+      console.error("sendManifestCreatedSMS failed:", error);
+      return { success: false, error: error.message };
+    }
+  }
+
+
+
+  async sendTokenNotReturnedAlertSMS(hostPhone, data = {}) {
+    try {
+      const {
+        labour_name,
+        supervisor_name,
+        company,
+        manifest_number,
+        token_uid,
+        last_out_time,
+        host_name
+      } = data;
+
+      const companyLabel = company || "-";
+      const manifestLabel = manifest_number || "-";
+
+      const message =
+        `Token Alert: ${labour_name} has checked out but not returned token.\n` +
+        `Token: ${token_uid}\n` +
+        `Supervisor: ${supervisor_name}\n` +
+        `Company: ${companyLabel}\n` +
+        `Manifest: ${manifestLabel}\n` +
+        `Checkout Time: ${last_out_time}`;
+
+      return await this.queueSMS({
+        phone: hostPhone,
+        message,
+        eventType: "TOKEN_NOT_RETURNED",
+        recipientName: host_name || supervisor_name,
+      });
+
+    } catch (error) {
+      logger.error("sendTokenNotReturnedAlertSMS failed:", error);
+      return { success: false, error: error.message };
+    }
+  }
   /**
    * Fetch logs (for UI / debugging)
    */

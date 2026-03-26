@@ -423,7 +423,8 @@ const styles = {
     fontWeight: 800,
     letterSpacing: 1.4,
     textTransform: "uppercase",
-    fontSize: 14
+    fontSize: 14,
+    color: "#e6ecff",
   },
 
 

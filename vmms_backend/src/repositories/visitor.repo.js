@@ -391,7 +391,10 @@ const ALLOWED_UPDATE_FIELDS = [
 export const update = async (id, updates) => {
   const keys = Object.keys(updates).filter((k) =>
     ALLOWED_UPDATE_FIELDS.includes(k)
+  
   );
+  console.log("INCOMING UPDATE:", updates)
+  console.log("ALLOWED KEYS:", keys)
 
   if (!keys.length) return null;
 

@@ -7,7 +7,8 @@ import errorMiddleware from "./middleware/error.middleware.js";
 import logger from "./utils/logger.util.js";
 
 // Initialize cron jobs
-import { startNoShowCron } from "./cron/noShow.cron.js";
+
+import { startAlertCron } from "./cron/noShow.cron.js";
 import { startMaterialBalanceCron } from "./cron/materialAlert.cron.js";
 import startSoftlockCron from "./cron/softlock.cron.js";
 
@@ -43,7 +44,7 @@ app.get("/health", (req, res) => {
 app.use(errorMiddleware);
 
 /* ---------- Start Scheduled Jobs ---------- */
-startNoShowCron();
+startAlertCron();
 startMaterialBalanceCron();
 await startSoftlockCron();
 

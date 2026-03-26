@@ -87,3 +87,16 @@ npm install axios react-router-dom socket.io-client zustand @mui/material @emoti
 dropdb -U svr_user vmms_db
 createdb -U svr_user vmms_db
 psql -U svr_user -d vmms_db -f vmms_db_backup_22_March_2026.sql
+
+
+to inititae back up, 
+go to exports folder and type
+PS C:\Users\DELL\Documents\VMMS\vmms_backend\exports> $env:PGPASSWORD="india123"; pg_dump -h localhost -p 5432 -U svr_user -F p --no-owner --no-privileges --clean --if-exists -f vmms_db_backup_22_March_2026.sql vmms_db
+
+
+git push on laptop
+naviagte to projects/VMMS
+git pull on raspberry pi,
+
+naviagte to projects/Vmms/vmms_backend/exports
+psql -U svr_user -d vmms_db -f vmms_db_backup_22_March_2026.sql

@@ -11,7 +11,9 @@ import {
   CircularProgress,
   Alert,
   Stack,
-  Chip
+  Chip,
+  Avatar,
+  Dialog
 } from '@mui/material'
 
 import DownloadIcon from '@mui/icons-material/Download'
@@ -42,7 +44,9 @@ export default function ManifestView() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
 
-  // Fetch
+  const [previewImage, setPreviewImage] = useState(null)
+
+  // ================= FETCH =================
   const fetchManifest = useCallback(async () => {
     try {
       setLoading(true)
@@ -65,7 +69,7 @@ export default function ManifestView() {
     if (id) fetchManifest()
   }, [id, fetchManifest])
 
-  // Download
+  // ================= DOWNLOAD =================
   const handleDownloadPdf = async () => {
     try {
       const res = await labourApi.getManifestPdf(id)
@@ -74,7 +78,7 @@ export default function ManifestView() {
 
       const link = document.createElement('a')
       link.href = url
-      link.download = `manifest-${manifest?.id || id}.pdf`
+      link.download = `manifest-${manifest?.manifest_number || id}.pdf`
       link.click()
 
       window.URL.revokeObjectURL(url)
@@ -84,7 +88,7 @@ export default function ManifestView() {
     }
   }
 
-  // Table Data
+  // ================= TABLE DATA =================
   const tableData = useMemo(
     () =>
       labours.map((labour, index) => ({
@@ -94,11 +98,31 @@ export default function ManifestView() {
     [labours]
   )
 
+  // ================= COLUMNS =================
   const columns = [
     { key: 'serial', label: '#', width: 60, align: 'center' },
+
+    {
+      key: 'photo',
+      label: 'Photo',
+      render: (_, row) =>
+        row.photo_url ? (
+          <Avatar
+            src={row.photo_url}
+            sx={{ width: 42, height: 42, cursor: 'pointer' }}
+            onClick={() => setPreviewImage(row.photo_url)}
+          />
+        ) : (
+          <Avatar sx={{ width: 42, height: 42 }}>
+            {row.full_name?.[0] || '?'}
+          </Avatar>
+        )
+    },
+
     { key: 'full_name', label: 'Name' },
     { key: 'gender', label: 'Gender', width: 90 },
     { key: 'age', label: 'Age', width: 70, align: 'center' },
+
     {
       key: 'aadhaar',
       label: 'Aadhaar',
@@ -108,11 +132,12 @@ export default function ManifestView() {
         row.aadhaar_last4 ||
         '-'
     },
+
     { key: 'phone', label: 'Phone' },
     { key: 'token_uid', label: 'RFID Token' }
   ]
 
-  // States
+  // ================= STATES =================
   if (loading) {
     return (
       <Box height="60vh" display="flex" alignItems="center" justifyContent="center">
@@ -146,15 +171,11 @@ export default function ManifestView() {
     )
   }
 
+  // ================= UI =================
   return (
-    <Box
-      sx={{
-        p: 3,
-        minHeight: '100vh',
-        background: 'linear-gradient(135deg, #f1f5f9, #eef2ff)'
-      }}
-    >
-      {/* HEADER */}
+    <Box sx={{ p: 3, background: '#f5f7fb', minHeight: '100vh' }}>
+
+      {/* ===== HEADER ===== */}
       <Paper
         sx={{
           p: 3,
@@ -166,70 +187,85 @@ export default function ManifestView() {
         }}
       >
         <Box>
-          <Typography variant="h5" fontWeight="bold">
-            Labour Manifest #{manifest.id}
+          <Typography variant="h5" fontWeight={700}>
+            Manifest #{manifest.manifest_number || manifest.id}
           </Typography>
+
           <Typography variant="body2" color="text.secondary">
             {formatDate(manifest.manifest_date)}
           </Typography>
         </Box>
 
-        <Chip label={`${labours.length} Labours`} color="primary" />
-      </Paper>
+        <Stack direction="row" spacing={2}>
+          <Chip label={`${labours.length} Labours`} color="primary" />
 
-      {/* SUPERVISOR DETAILS - VERTICAL */}
-      <Paper sx={{ p: 3, mb: 3, borderRadius: 3 }}>
-        <Typography variant="h6" mb={2}>
-          Supervisor & Project Details
-        </Typography>
+          <Button
+            variant="outlined"
+            startIcon={<RefreshIcon />}
+            onClick={fetchManifest}
+          >
+            Refresh
+          </Button>
 
-        <Stack spacing={2}>
-          <Box>
-            <Typography fontSize={12} color="text.secondary">Supervisor</Typography>
-            <Typography fontWeight={600}>{manifest.supervisor_name || '-'}</Typography>
-          </Box>
-
-          <Box>
-            <Typography fontSize={12} color="text.secondary">Company</Typography>
-            <Typography fontWeight={600}>{manifest.company_name || '-'}</Typography>
-          </Box>
-
-          <Box>
-            <Typography fontSize={12} color="text.secondary">Project</Typography>
-            <Typography fontWeight={600}>{manifest.project_name || '-'}</Typography>
-          </Box>
-
-          <Box>
-            <Typography fontSize={12} color="text.secondary">Primary Phone</Typography>
-            <Typography fontWeight={600}>{manifest.primary_phone || '-'}</Typography>
-          </Box>
-
-          <Box>
-            <Typography fontSize={12} color="text.secondary">Date</Typography>
-            <Typography fontWeight={600}>{formatDate(manifest.manifest_date)}</Typography>
-          </Box>
-        </Stack>
-      </Paper>
-
-      {/* TABLE */}
-      <Paper sx={{ p: 3, borderRadius: 3 }}>
-        <Stack direction="row" justifyContent="space-between" mb={2}>
-          <Typography variant="h6">Registered Labours</Typography>
-
-          {/* SINGLE DOWNLOAD BUTTON */}
           <Button
             variant="contained"
             startIcon={<DownloadIcon />}
             onClick={handleDownloadPdf}
           >
-            Download PDF
+            Download
           </Button>
         </Stack>
+      </Paper>
+
+      {/* ===== SUPERVISOR ===== */}
+      <Paper sx={{ p: 3, mb: 3, borderRadius: 3 }}>
+        <Typography variant="h6" mb={2}>
+          Supervisor Details
+        </Typography>
+
+        <Box display="flex" flexDirection="column" gap={1.5}>
+          <Typography><strong>Supervisor:</strong> {manifest.supervisor_name}</Typography>
+          <Typography><strong>Company:</strong> {manifest.company_name}</Typography>
+          <Typography><strong>Project:</strong> {manifest.project_name}</Typography>
+          <Typography><strong>Phone:</strong> {manifest.primary_phone}</Typography>
+          <Typography><strong>Date:</strong> {formatDate(manifest.manifest_date)}</Typography>
+        </Box>
+      </Paper>
+
+      {/* ===== TABLE ===== */}
+      <Paper sx={{ p: 3, borderRadius: 3 }}>
+        <Typography variant="h6" mb={2}>
+          Registered Labours
+        </Typography>
 
         <DataTable columns={columns} data={tableData} />
       </Paper>
 
+      {/* ===== IMAGE PREVIEW MODAL ===== */}
+      <Dialog open={!!previewImage} onClose={() => setPreviewImage(null)}>
+        <Box
+          component="img"
+          src={previewImage}
+          alt="preview"
+          sx={{ maxWidth: '90vw', maxHeight: '90vh' }}
+        />
+      </Dialog>
+
       <Divider sx={{ my: 4 }} />
+    </Box>
+  )
+}
+
+// ================= SUB COMPONENT =================
+function Info({ label, value }) {
+  return (
+    <Box minWidth={150}>
+      <Typography fontSize={12} color="text.secondary">
+        {label}
+      </Typography>
+      <Typography fontWeight={600}>
+        {value || '-'}
+      </Typography>
     </Box>
   )
 }
