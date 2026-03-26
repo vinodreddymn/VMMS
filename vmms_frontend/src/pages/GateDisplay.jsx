@@ -39,6 +39,7 @@ export default function GateDisplay() {
   const [registeredPhoto, setRegisteredPhoto] = useState(null)
   const [livePhoto, setLivePhoto] = useState(null)
   const [cameraReady, setCameraReady] = useState(false)
+  const [isOnline, setIsOnline] = useState(typeof navigator !== 'undefined' ? navigator.onLine : true)
 
   const videoRef = useRef(null)
   const canvasRef = useRef(null)
@@ -62,6 +63,17 @@ export default function GateDisplay() {
     inputRef.current?.focus()
     return () => stopCamera()
   }, [selectingGate, gateId])
+
+  useEffect(() => {
+    const handleOnline = () => setIsOnline(true)
+    const handleOffline = () => setIsOnline(false)
+    window.addEventListener('online', handleOnline)
+    window.addEventListener('offline', handleOffline)
+    return () => {
+      window.removeEventListener('online', handleOnline)
+      window.removeEventListener('offline', handleOffline)
+    }
+  }, [])
 
   useEffect(() => {
     if (!gateId) return
@@ -150,6 +162,7 @@ export default function GateDisplay() {
     setCurrentAccess(null)
     setSuccessMessage('')
     setErrorMessage(msg || 'Access Denied')
+    setRfidInput('')
     resetDisplay()
   }
 
@@ -480,7 +493,13 @@ export default function GateDisplay() {
         </Box>
 
         {/* RIGHT : ACTION */}
-        <Box sx={{ display: "flex", justifyContent: "flex-end" }}>
+        <Box sx={{ display: "flex", justifyContent: "flex-end", gap: 1, alignItems: "center" }}>
+          <Chip
+            size="small"
+            label={isOnline ? "Online" : "Offline"}
+            color={isOnline ? "success" : "error"}
+            sx={{ fontWeight: 700 }}
+          />
           <Button
             variant="text"
             size="small"
