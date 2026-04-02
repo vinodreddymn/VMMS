@@ -1,0 +1,17 @@
+{
+  "name": "gate-system",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start:backend": "node backend/server.js",
+    "start:gate": "node gate-client/gateClient.js",
+    "start:display": "node display-ui/server.js"
+  },
+  "dependencies": {
+    "express": "^4.19.0",
+    "node-fetch": "^3.3.2",
+    "node-webcam": "^0.8.2",
+    "ws": "^8.15.1"
+  }
+}

@@ -9,7 +9,8 @@ router.post("/authenticate", controller.authenticate);
 router.post("/authenticate-labour", controller.authenticateLabour);
 
 // Gate health monitoring
-router.post("/health", auth, controller.updateGateHealth);
+// Ingest from gate devices (no auth; IP is used to resolve gate when gate_id is missing)
+router.post("/health", controller.updateGateHealth);
 router.get("/health", auth, controller.getAllGateHealth);
 router.get("/health/:gate_id", auth, controller.getGateHealth);
 

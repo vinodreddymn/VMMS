@@ -123,21 +123,6 @@ export default function VisitorsList() {
   /* ---------------- HELPERS ---------------- */
   const formatDate = (val) => (val ? new Date(val).toLocaleDateString() : '-')
 
-  const deriveStatus = (v) => {
-    if (!v.valid_to) return 'INACTIVE'
-    const today = new Date()
-    const expiry = new Date(v.valid_to)
-    return expiry >= today ? 'ACTIVE' : 'EXPIRED'
-  }
-
-  const isExpiringSoon = (date) => {
-    if (!date) return false
-    const today = new Date()
-    const expiry = new Date(date)
-    const diffDays = (expiry - today) / (1000 * 60 * 60 * 24)
-    return diffDays <= 7 && diffDays >= 0
-  }
-
   const getStatusChip = (status) => {
     const map = {
       ACTIVE: 'success',
@@ -146,9 +131,10 @@ export default function VisitorsList() {
       INACTIVE: 'default',
       SOFT_LOCK: 'warning'
     }
+    const label = status === 'SOFT_LOCK' ? 'Inactive' : status
     return (
       <Chip
-        label={status}
+        label={label}
         color={map[status] || 'default'}
         size="small"
         sx={{ fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.6 }}
@@ -163,22 +149,8 @@ export default function VisitorsList() {
   }, [typeCounts])
 
   const matchesStatusFilter = (v) => {
-    const status = v.status || deriveStatus(v)
-    const expiringSoon = isExpiringSoon(v.valid_to)
-    switch (statusFilter) {
-      case 'ACTIVE':
-        return status === 'ACTIVE' && !expiringSoon
-      case 'EXPIRING':
-        return status === 'ACTIVE' && expiringSoon
-      case 'EXPIRED':
-        return status === 'EXPIRED'
-      case 'INACTIVE':
-        return status === 'INACTIVE'
-      case 'SOFT_LOCK':
-        return status === 'SOFT_LOCK'
-      default:
-        return true
-    }
+    if (statusFilter === 'ALL') return true
+    return v.status === statusFilter
   }
 
   /* ---------------- PROCESS DATA & FILTER BY TYPE ---------------- */
@@ -195,20 +167,17 @@ export default function VisitorsList() {
     const start = (page - 1) * limit
     return filteredVisitors
       .slice(start, start + limit)
-      .map((v, index) => {
-        const status = v.status || deriveStatus(v)
-        return {
-          id: v.id,
-          serial_no: start + index + 1,
-          pass_no: v.pass_no || v.visitor_pass_no || '-',
-          full_name: `${v.first_name || ''} ${v.last_name || ''}`.trim(),
-          type: v.visitor_type_name || v.type_name || '-',
-          organization: v.company_name || '-',
-          phone: v.primary_phone || '-',
-          valid_to: v.valid_to || null,
-          status,
-        }
-      })
+      .map((v, index) => ({
+        id: v.id,
+        serial_no: start + index + 1,
+        pass_no: v.pass_no || v.visitor_pass_no || '-',
+        full_name: `${v.first_name || ''} ${v.last_name || ''}`.trim(),
+        type: v.visitor_type_name || v.type_name || '-',
+        organization: v.company_name || '-',
+        phone: v.primary_phone || '-',
+        valid_to: v.valid_to || null,
+        status: v.status,
+      }))
   }, [filteredVisitors, page, limit])
 
   /* ---------------- GET TYPE COUNT ---------------- */
@@ -221,9 +190,6 @@ export default function VisitorsList() {
   const summaryCards = [
     { key: 'total', label: 'Total Visitors', value: stats.total || 0, color: '#0ea5e9', icon: PeopleAltIcon },
     { key: 'active', label: 'Active', value: stats.active || 0, color: '#22c55e', icon: EventAvailableIcon },
-    { key: 'expiring', label: 'Expiring Soon', value: stats.expiring || 0, color: '#f59e0b', icon: HourglassBottomIcon },
-    { key: 'expired', label: 'Expired', value: stats.expired || 0, color: '#ef4444', icon: EventBusyIcon },
-    { key: 'inactive', label: 'Inactive', value: stats.inactive || 0, color: '#94a3b8', icon: PersonOffIcon },
     { key: 'soft_lock', label: 'Soft Locked', value: stats.soft_lock || 0, color: '#f97316', icon: LockPersonIcon },
   ]
 
@@ -258,7 +224,7 @@ export default function VisitorsList() {
       label: 'Status',
       width: '120px',
       align: 'center',
-      render: (status, row) => getStatusChip(status || row.status),
+      render: (_status, row) => getStatusChip(row.status),
     },
     {
       key: 'valid_to',
@@ -268,17 +234,39 @@ export default function VisitorsList() {
       render: (valid_to, row) => (
         <Box display="flex" alignItems="center" gap={0.6} justifyContent="center">
           {formatDate(valid_to || row.valid_to)}
-          {isExpiringSoon(valid_to || row.valid_to) && (
-            <Tooltip title="Pass expiring within 7 days">
-              <WarningAmberIcon color="warning" fontSize="small" sx={{ flexShrink: 0 }} />
-            </Tooltip>
-          )}
         </Box>
       ),
     },
   ]
 
   /* ---------------- RENDER ---------------- */
+  // Build chips dynamically from backend-provided statuses only
+  const statusCounts = useMemo(() => ({
+    ACTIVE: stats.active ?? 0,
+    SOFT_LOCK: stats.soft_lock ?? 0,
+    EXPIRED: stats.expired ?? 0,
+    EXPIRING: stats.expiring ?? 0,
+    INACTIVE: stats.inactive ?? 0,
+  }), [stats])
+
+  const availableStatuses = useMemo(
+    () => Object.entries(statusCounts)
+      .filter(([, count]) => count > 0)
+      .map(([status]) => status),
+    [statusCounts]
+  )
+
+  const statusMeta = {
+    ACTIVE: { label: 'Active', color: 'success' },
+    SOFT_LOCK: { label: 'Inactive', color: 'error' },
+  }
+
+  useEffect(() => {
+    if (statusFilter !== 'ALL' && !availableStatuses.includes(statusFilter)) {
+      setStatusFilter('ALL')
+    }
+  }, [availableStatuses, statusFilter])
+
   return (
     <Container maxWidth="xxl" sx={{ py: 2 }}>
 
@@ -392,31 +380,27 @@ export default function VisitorsList() {
       </Box>
 
       <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', mb: 2 }}>
-        {[
-          { key: 'ALL', label: 'All', count: stats.total, color: 'primary' },
-          { key: 'ACTIVE', label: 'Active', count: stats.active, color: 'success' },
-          { key: 'EXPIRING', label: 'Expiring Soon', count: stats.expiring, color: 'warning' },
-          { key: 'EXPIRED', label: 'Expired', count: stats.expired, color: 'error' },
-          { key: 'INACTIVE', label: 'Inactive', count: stats.inactive, color: 'default' },
-          { key: 'SOFT_LOCK', label: 'Soft Locked', count: stats.soft_lock, color: 'error' },
-        ].map((item) => (
-          <Chip
-            key={item.key}
-            label={`${item.label}: ${item.count ?? 0}`}
-            color={item.color}
-            variant={statusFilter === item.key ? 'filled' : 'outlined'}
-            onClick={() => {
-              setStatusFilter(item.key)
-              setPage(1)
-            }}
-            sx={{
-              fontWeight: 700,
-              cursor: 'pointer',
-              borderWidth: statusFilter === item.key ? 0 : 1.5,
-              borderColor: '#e2e8f0'
-            }}
-          />
-        ))}
+        <Chip
+          key="ALL"
+          label={`All: ${stats.total ?? 0}`}
+          color="primary"
+          variant={statusFilter === 'ALL' ? 'filled' : 'outlined'}
+          onClick={() => { setStatusFilter('ALL'); setPage(1) }}
+          sx={{ fontWeight: 700, cursor: 'pointer', borderWidth: statusFilter === 'ALL' ? 0 : 1.5, borderColor: '#e2e8f0' }}
+        />
+        {availableStatuses.map((status) => {
+          const meta = statusMeta[status] || { label: status, color: 'default' }
+          return (
+            <Chip
+              key={status}
+              label={`${meta.label}: ${statusCounts[status] ?? 0}`}
+              color={meta.color}
+              variant={statusFilter === status ? 'filled' : 'outlined'}
+              onClick={() => { setStatusFilter(status); setPage(1) }}
+              sx={{ fontWeight: 700, cursor: 'pointer', borderWidth: statusFilter === status ? 0 : 1.5, borderColor: '#e2e8f0' }}
+            />
+          )
+        })}
       </Box>
 
       {/* TABS */}

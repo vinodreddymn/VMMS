@@ -1,0 +1,135 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Gate Display</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='12' fill='%23020b1a'/%3E%3Cpath d='M16 20h32v24H16z' fill='%2322c55e' opacity='.2'/%3E%3Cpath d='M20 24h24v4H20zM20 32h24v4H20zM20 40h24v4H20z' fill='%2338bdf8'/%3E%3Ccircle cx='48' cy='16' r='6' fill='%23fbbf24'/%3E%3C/svg%3E"/>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div class="screen">
+    <div id="header-container"></div>
+
+    <section class="meta">
+      <div class="chip">
+        <span class="chip-label">Gate</span>
+        <span id="gateChip">--</span>
+      </div>
+      <div class="chip">
+        <span class="chip-label">Direction</span>
+        <span id="direction">--</span>
+      </div>
+      <div class="chip">
+        <span class="chip-label">Lane</span>
+        <span id="lane">--</span>
+      </div>
+      <div class="chip">
+        <span class="chip-label">Pass Type</span>
+        <span id="passType">--</span>
+      </div>
+      <div class="chip">
+        <span class="chip-label">Last Event</span>
+        <span id="lastSeen">--</span>
+      </div>
+    </section>
+
+    <main class="content">
+      <section class="photo-grid">
+        <article class="photo card">
+          <div class="card-head">
+            <h2>Registered Photo</h2>
+            <span class="badge muted">Reference</span>
+          </div>
+          <img id="registeredPhoto" alt="Registered Visitor" loading="lazy" />
+        </article>
+
+        <article class="photo card accent">
+          <div class="card-head">
+            <h2>Live Camera Capture</h2>
+            <span class="badge live">Live</span>
+          </div>
+          <img id="livePhoto" alt="Live Capture" loading="lazy" />
+        </article>
+      </section>
+
+      <section class="card verification-card">
+        <div class="stat-line">
+          <div>
+            <p class="label">Pass Status</p>
+            <p id="passStatus" class="value emphasized">--</p>
+          </div>
+          <div>
+            <p class="label">Pass No.</p>
+            <p id="passNo" class="value">--</p>
+          </div>
+        </div>
+        <div class="stat-line">
+          <div>
+            <p class="label">Valid From</p>
+            <p id="validFrom" class="value">--</p>
+          </div>
+          <div>
+            <p class="label">Valid To</p>
+            <p id="validTo" class="value">--</p>
+          </div>
+        </div>
+        <div class="progress">
+          <div id="matchBar" class="progress-bar"></div>
+        </div>
+        <div class="match-score">
+          <span class="label">Match Confidence</span>
+          <span id="matchScore" class="value">--</span>
+        </div>
+      </section>
+
+      <section class="card details visitor-card">
+        <div class="card-head">
+          <h3>Visitor Information</h3>
+          <span class="badge subtle">ID Check</span>
+        </div>
+        <div class="row">
+          <span class="label">Full Name</span>
+          <span id="visitorName" class="value">--</span>
+        </div>
+        <div class="row">
+          <span class="label">Visitor ID</span>
+          <span id="visitorId" class="value">--</span>
+        </div>
+        <div class="row">
+          <span class="label">Company</span>
+          <span id="company" class="value">--</span>
+        </div>
+      </section>
+
+      <section class="card details notes-card">
+        <div class="card-head">
+          <h3>Permissions &amp; Security Checks</h3>
+          <span class="badge muted">Security</span>
+        </div>
+        <div class="pill-row">
+          <span class="pill" id="smartphone">Smartphone: --</span>
+          <span class="pill" id="laptop">Laptop: --</span>
+          <span class="pill" id="opsArea">Ops Area: --</span>
+        </div>
+        <div class="row">
+          <span class="label">Last Synced</span>
+          <span id="lastSynced" class="value">--</span>
+        </div>
+        <p id="remarks" class="remarks">Awaiting scan...</p>
+      </section>
+    </main>
+  </div>
+
+  <script type="module" src="app.js"></script>
+  <script>
+    fetch("header.html")
+      .then((response) => response.text())
+      .then((data) => {
+        document.getElementById("header-container").innerHTML = data;
+        document.dispatchEvent(new Event("header:loaded"));
+      })
+      .catch((error) => console.error("Error loading header:", error));
+  </script>
+</body>
+</html>

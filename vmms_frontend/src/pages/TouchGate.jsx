@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState, useMemo } from 'react';
+import React, { useEffect, useRef, useState, useMemo, useCallback } from 'react';
 import {
   Box,
   Typography,
@@ -13,6 +13,7 @@ import {
   DialogActions,
   MenuItem,
   TextField,
+  CircularProgress,
 } from '@mui/material';
 import { styled } from '@mui/material/styles';
 import { io } from 'socket.io-client';
@@ -78,7 +79,6 @@ export default function TouchGateUltimate() {
   const [eventCard, setEventCard] = useState(null);
   const [message, setMessage] = useState('');
   const [openGateDialog, setOpenGateDialog] = useState(false);
-  const [cameraReady, setCameraReady] = useState(false);
   const [eventQueue, setEventQueue] = useState([]);
   const [activeEvent, setActiveEvent] = useState(null);
   const [lastEventTime, setLastEventTime] = useState(null);
@@ -88,7 +88,9 @@ export default function TouchGateUltimate() {
   const canvasRef = useRef(null);
   const streamRef = useRef(null);
   const socketRef = useRef(null);
-  const seenEvents = useRef(new Set());
+  const seenEvents = useRef(new Map()); // id -> lastSeenTs
+  const shownEvents = useRef(new Map()); // id -> lastShownTs
+  const pendingTimerRef = useRef(null);
 
   /* ---------------- INIT ---------------- */
   useEffect(() => {
@@ -98,6 +100,72 @@ export default function TouchGateUltimate() {
 
     return () => stopCamera();
   }, []);
+
+  const lastEventTimeRef = useRef(null);
+  useEffect(() => {
+    lastEventTimeRef.current = lastEventTime;
+  }, [lastEventTime]);
+
+  const eventKey = useCallback((evt) => {
+    if (!evt) return null;
+    return (
+      evt.access_log_id ||
+      evt.event_id ||
+      evt.id ||
+      evt.pass_no ||
+      evt.card_uid ||
+      evt.token_uid ||
+      null
+    );
+  }, []);
+
+  const isEventReady = useCallback((evt) => {
+    if (!evt) return false;
+    return Boolean(
+      evt.full_name &&
+        evt.pass_no &&
+        evt.scan_time &&
+        evt.person_type &&
+        evt.direction
+    );
+  }, []);
+
+  const mergeEvent = useCallback((oldEvt, newEvt) => {
+    if (!oldEvt) return newEvt;
+    if (!newEvt) return oldEvt;
+    const merged = { ...oldEvt, ...newEvt };
+    // Prefer newer scan_time if present
+    if (newEvt.scan_time) merged.scan_time = newEvt.scan_time;
+    return merged;
+  }, []);
+
+  const preparingPopup = eventQueue.length > 0 && !activeEvent;
+
+  const upsertEvent = useCallback(
+    (evt) => {
+      const key = eventKey(evt);
+      if (!key) return;
+
+      // If currently showing the same event, just merge/update without requeue
+      setActiveEvent((prev) => {
+        if (prev && eventKey(prev) === key) {
+          return mergeEvent(prev, evt);
+        }
+        return prev;
+      });
+
+      // If already shown before and not active, ignore to prevent repeat popups
+      const shownTs = shownEvents.current.get(key);
+      if (shownTs && Date.now() - shownTs < 10 * 60 * 1000) return;
+
+      setEventQueue((prev) => {
+        const filtered = prev.filter((e) => eventKey(e) !== key);
+        const merged = mergeEvent(filtered.find((e) => eventKey(e) === key), evt);
+        return [...filtered, merged];
+      });
+    },
+    [eventKey, mergeEvent]
+  );
 
   const loadGates = async () => {
     const res = await getMasters();
@@ -120,15 +188,19 @@ export default function TouchGateUltimate() {
   };
 
   /* ---------------- CAMERA ---------------- */
+  const isMobileOrTablet = () =>
+    /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent || '') ||
+    (window.innerWidth && window.innerWidth < 900);
+
   const initCamera = async () => {
     try {
+      const facingMode = isMobileOrTablet() ? { ideal: 'environment' } : { ideal: 'user' };
       const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: 'user', width: { ideal: 1280 }, height: { ideal: 720 } },
+        video: { facingMode, width: { ideal: 1280 }, height: { ideal: 720 } },
       });
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
         videoRef.current.onloadedmetadata = () => {
-          setCameraReady(true);
           videoRef.current?.play().catch(() => {});
         };
       }
@@ -143,12 +215,12 @@ export default function TouchGateUltimate() {
   };
 
   /* ---------------- SOCKET & EVENTS ---------------- */
-  const EVENT_POPUP_DURATION = 5000;
+  const EVENT_POPUP_DURATION = 10000;
 
   useEffect(() => {
     const enabled =
       import.meta.env.VITE_ENABLE_SOCKET === 'true' || Boolean(import.meta.env.VITE_SOCKET_URL);
-    if (!enabled) return;
+    if (!enabled || socketRef.current) return;
 
     const baseUrl =
       import.meta.env.VITE_SOCKET_URL ||
@@ -161,44 +233,62 @@ export default function TouchGateUltimate() {
     socket.on('disconnect', () => setSocketConnected(false));
 
     socket.on('ANDON_EVENT', (event) => {
-      if (!acceptEvent(event, lastEventTime, seenEvents, gateId)) return;
-      if (event.scan_time) setLastEventTime(event.scan_time);
-      setEventQueue((prev) => [...prev, event]);
+      const accepted = acceptEvent(event, lastEventTimeRef.current, seenEvents, gateId);
+      if (!accepted) return;
+      if (event.scan_time) {
+        setLastEventTime(event.scan_time);
+      }
+      upsertEvent(event);
     });
 
     socketRef.current = socket;
     return () => socket.disconnect();
-  }, [lastEventTime]);
+  }, [gateId, upsertEvent]);
 
   // Fallback polling if sockets not connected
   useEffect(() => {
     if (socketConnected) return;
     const timer = setInterval(async () => {
-      if (!lastEventTime) return;
+      if (!lastEventTimeRef.current) return;
       try {
         const { data } = await api.get(
-          `/public/andon/events?since=${encodeURIComponent(lastEventTime)}`
+          `/public/andon/events?since=${encodeURIComponent(lastEventTimeRef.current)}`
         );
         const events = data?.events || [];
-        const accepted = events.filter((evt) => acceptEvent(evt, lastEventTime, seenEvents, gateId));
+        const accepted = events.filter((evt) =>
+          acceptEvent(evt, lastEventTimeRef.current, seenEvents, gateId)
+        );
         if (!accepted.length) return;
         const latest = accepted[accepted.length - 1]?.scan_time;
         if (latest) setLastEventTime(latest);
-        setEventQueue((prev) => [...prev, ...accepted]);
+        accepted.forEach((evt) => upsertEvent(evt));
       } catch (err) {
         console.error('Events poll error', err);
       }
     }, 8000);
     return () => clearInterval(timer);
-  }, [socketConnected, lastEventTime]);
+  }, [socketConnected, gateId, upsertEvent]);
 
   // Event queue processing
   useEffect(() => {
     if (activeEvent || eventQueue.length === 0) return;
+    if (pendingTimerRef.current) clearTimeout(pendingTimerRef.current);
     const [next, ...rest] = eventQueue;
-    setActiveEvent(next);
-    setEventQueue(rest);
-  }, [eventQueue, activeEvent]);
+    pendingTimerRef.current = setTimeout(() => {
+      setActiveEvent(next);
+      setEventQueue(rest);
+      const key = eventKey(next);
+      if (key) {
+        shownEvents.current.set(key, Date.now());
+        purgeSeenMap(shownEvents.current, 15 * 60 * 1000);
+      }
+      pendingTimerRef.current = null;
+    }, 500); // delay to allow backend to enrich event payload
+  }, [eventQueue, activeEvent, eventKey]);
+
+  useEffect(() => () => {
+    if (pendingTimerRef.current) clearTimeout(pendingTimerRef.current);
+  }, []);
 
   useEffect(() => {
     if (!activeEvent) return;
@@ -236,7 +326,7 @@ export default function TouchGateUltimate() {
       if ((v.data.status || '').toUpperCase() === 'SUCCESS') {
         const evt = buildEventCard(v.data, 'VISITOR', photo);
         setEventCard(evt);
-        setEventQueue((prev) => [...prev, evt]);
+        upsertEvent(evt);
         setStatus('SUCCESS');
         setMessage(`ACCESS GRANTED - ${v.data.full_name || 'Visitor'}`);
         reset();
@@ -247,7 +337,7 @@ export default function TouchGateUltimate() {
       if ((l.data.status || '').toUpperCase() === 'SUCCESS') {
         const evt = buildEventCard(l.data, 'LABOUR', photo);
         setEventCard(evt);
-        setEventQueue((prev) => [...prev, evt]);
+        upsertEvent(evt);
         setStatus('SUCCESS');
         setMessage(`ACCESS GRANTED - ${l.data.name || 'Labour'}`);
         reset();
@@ -279,7 +369,7 @@ export default function TouchGateUltimate() {
       ['Q', 'W', 'E', 'R', 'T', 'Y', 'U', 'I', 'O', 'P'],
       ['A', 'S', 'D', 'F', 'G', 'H', 'J', 'K', 'L'],
       ['Z', 'X', 'C', 'V', 'B', 'N', 'M'],
-      ['CLEAR', 'DEL', 'OK'],
+      ['CLEAR', 'DEL'],
     ],
     []
   );
@@ -365,7 +455,7 @@ export default function TouchGateUltimate() {
       >
         <Box
           sx={{
-            maxWidth: 1920,
+            maxWidth: 1400,
             mx: 'auto',
             display: 'flex',
             flexWrap: 'wrap',
@@ -409,9 +499,12 @@ export default function TouchGateUltimate() {
       </Box>
 
       {/* Status banner */}
-      <Box sx={{ maxWidth: 1920, minWidth: 1920, mx: 'auto', px: { xs: 1.5, md: 3 }, pt: 1.5 }}>
+      <Box sx={{ width: '100%', maxWidth: 1400, mx: 'auto', px: { xs: 1.5, md: 3 }, pt: 1.5 }}>
         <StatusBox tone={statusTone()}>
-          <Stack spacing={0.6} sx={{ width: '100%', alignItems: 'center', px: { xs: 1, md: 4 } }}>
+          <Stack
+            spacing={0.6}
+            sx={{ width: '100%', alignItems: 'center', px: { xs: 1, md: 4 }, textAlign: 'center' }}
+          >
             <Typography
               sx={{
                 fontWeight: 900,
@@ -436,16 +529,14 @@ export default function TouchGateUltimate() {
       <Box
         sx={{
           px: { xs: 1.5, md: 3 },
-          py: 2,
-          maxWidth: 1920,
+          py: { xs: 1.5, md: 2.5 },
+          maxWidth: '100vh',
           mx: 'auto',
-          height: 'calc(100vh - 240px)',
         }}
       >
-        <Grid container spacing={2} sx={{ height: '100%' }}>
-          {/* LEFT: UID + KEYPAD */}
-          <Grid item xs={12} md={4} sx={{ height: '100%' }}>
-            <Card sx={{ p: { xs: 2, md: 2.5 }, height: '100%' }}>
+        <Grid container spacing={2} sx={{ alignItems: 'stretch' }}>
+          <Grid item xs={12}>
+            <Card sx={{ p: { xs: 2, md: 2.5 }, height: '100%', width: '100%' }}>
               <Stack direction="row" alignItems="center" justifyContent="space-between" mb={1.5}>
                 <Typography variant="h6" fontWeight={800}>
                   Credential Input
@@ -455,11 +546,11 @@ export default function TouchGateUltimate() {
 
               <Box
                 sx={{
-                  fontSize: { xs: 24, md: 30 },
+                  fontSize: { xs: 22, sm: 24, md: 30 },
                   fontWeight: 800,
-                  letterSpacing: { xs: 1.5, md: 3 },
+                  letterSpacing: { xs: 1, md: 3 },
                   minHeight: 60,
-                  minWidth: 1920,
+                  width: '100%',
                   mb: 1.5,
                   color: uid ? '#67e8f9' : '#94a3b8',
                   textAlign: 'center',
@@ -473,19 +564,17 @@ export default function TouchGateUltimate() {
 
               <Stack spacing={1}>
                 {keyRows.map((row, idx) => (
-                  <Stack
-                    key={idx}
-                    direction="row"
-                    spacing={1}
-                    justifyContent="center"
-                    flexWrap="wrap"
-                  >
+                  <Stack key={idx} direction="row" spacing={1} justifyContent="center" flexWrap="wrap">
                     {row.map((k) => (
                       <KeyButton
                         key={k}
                         sx={{
-                          minWidth: k.length > 3 ? 96 : 62,
-                          flex: k === 'OK' ? '1 0 120px' : '0 0 auto',
+                          minWidth: { xs: k.length > 3 ? 96 : 52, sm: 62 },
+                          flex:
+                            k === 'OK'
+                              ? { xs: '1 0 120px', sm: '1 0 140px' }
+                              : { xs: '1 0 64px', sm: '0 0 auto' },
+                          fontSize: { xs: 14, sm: 16 },
                           background:
                             k === 'OK'
                               ? 'linear-gradient(135deg,#16a34a,#22c55e)'
@@ -517,12 +606,47 @@ export default function TouchGateUltimate() {
               >
                 Verify & Capture
               </Button>
+
+              <Stack spacing={1} mt={2} direction={{ xs: 'column', sm: 'row' }}>
+                <StatusBox tone="linear-gradient(135deg,#1f2937,#0b1d2e)" sx={{ p: 2, minHeight: 'auto', flex: 1 }}>
+                  <Stack spacing={0.4} alignItems="center">
+                    <Typography sx={{ fontWeight: 700, fontSize: 14 }}>Quick Tips</Typography>
+                    <Typography sx={{ fontSize: 12, opacity: 0.7, textAlign: 'center' }}>
+                      Tap numbers/letters or scan RFID. Use OK to submit, DEL to correct.
+                    </Typography>
+                  </Stack>
+                </StatusBox>
+              </Stack>
             </Card>
           </Grid>
-
-
         </Grid>
       </Box>
+
+      {/* Inline prep indicator while waiting to show popup */}
+      {preparingPopup && (
+        <Box
+          sx={{
+            position: 'fixed',
+            bottom: { xs: 12, md: 20 },
+            right: { xs: 12, md: 24 },
+            zIndex: 1400,
+            display: 'flex',
+            alignItems: 'center',
+            gap: 1,
+            background: 'rgba(15,23,42,0.9)',
+            border: '1px solid rgba(148,163,184,0.3)',
+            borderRadius: 12,
+            px: 1.5,
+            py: 1,
+            boxShadow: '0 12px 32px rgba(0,0,0,0.45)',
+          }}
+        >
+          <CircularProgress size={18} thickness={4} color="info" />
+          <Typography sx={{ fontWeight: 700, fontSize: 13, color: '#e2e8f0' }}>
+            Preparing access record...
+          </Typography>
+        </Box>
+      )}
 
       {/* Popup overlay for live event */}
       <EventPopup event={activeEvent} resolvePhoto={resolvePhoto} />
@@ -563,19 +687,32 @@ function acceptEvent(event, lastEventTime, seenEvents, gateId) {
   const selGateId = Number(gateId);
   if (selGateId && evGateId && evGateId !== selGateId) return false;
 
-  const id =
-    event.access_log_id || `${event.person_type}-${event.person_id || event.full_name}-${event.scan_time}`;
+  const id = event.access_log_id || event.event_id || event.id || event.pass_no || event.card_uid || event.token_uid;
+  if (!id) return false; // ignore events without a strict unique ID
 
-  if (id && seenEvents.current.has(id)) return false;
+  const eventTsRaw = event.scan_time ? new Date(event.scan_time).getTime() : Date.now();
+  const eventTs = Number.isNaN(eventTsRaw) ? Date.now() : eventTsRaw;
+  const lastSeen = seenEvents.current.get(id);
 
+  // time-window dedupe (default 5s)
+  if (lastSeen && eventTs - lastSeen < 5000) return false;
+
+  // ensure monotonic by scan_time if available
   if (event.scan_time && lastEventTime) {
-    const eventTs = new Date(event.scan_time).getTime();
     const lastTs = new Date(lastEventTime).getTime();
     if (!Number.isNaN(eventTs) && !Number.isNaN(lastTs) && eventTs <= lastTs) {
       return false;
     }
   }
 
-  if (id) seenEvents.current.add(id);
+  seenEvents.current.set(id, eventTs || Date.now());
+  purgeSeenMap(seenEvents.current, 10 * 60 * 1000); // 10 min TTL to avoid leak
   return true;
+}
+
+function purgeSeenMap(map, ttlMs) {
+  const cutoff = Date.now() - ttlMs;
+  for (const [key, ts] of map.entries()) {
+    if (ts < cutoff) map.delete(key);
+  }
 }

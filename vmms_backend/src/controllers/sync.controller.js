@@ -6,9 +6,9 @@ import logger from "../utils/logger.util.js";
 
 export const getMasterWhitelist = async (req, res) => {
   try {
-    const { last_sync } = req.query;
+    const { last_sync, gate_id } = req.query;
 
-    const result = await syncService.getMasterWhitelist(last_sync);
+    const result = await syncService.getMasterWhitelist(last_sync, gate_id);
 
     res.json(result);
   } catch (error) {

@@ -6,6 +6,10 @@ import {
   getSupervisorLabourPhotoPaths,
   getVisitorLivePhotoPaths,
 } from "./visitor-storage.util.js";
+import env from "../config/env.js";
+
+const uploadsRoot = env.paths?.uploadsDir || path.resolve(process.cwd(), "uploads");
+const uploadsUrlSegment = env.paths?.uploadsUrlSegment || "uploads";
 
 const normalizePhotoBuffer = (photo) => {
   if (!photo) return null;
@@ -76,8 +80,8 @@ export const saveLivePhoto = async ({
   }
 
   if (!absolutePath) {
-    livePhotoPath = path.posix.join("uploads", filename);
-    absolutePath = path.join(process.cwd(), "uploads", filename);
+    livePhotoPath = path.posix.join(uploadsUrlSegment, filename);
+    absolutePath = path.join(uploadsRoot, filename);
   }
 
   await fs.promises.mkdir(path.dirname(absolutePath), { recursive: true });

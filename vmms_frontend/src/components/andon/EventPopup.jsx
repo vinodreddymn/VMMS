@@ -1,25 +1,33 @@
-import React from "react";
-import { Box, Typography, Card } from "@mui/material";
+import React, { useMemo } from "react";
+import { Box, Typography, Card, Fade } from "@mui/material";
 import { formatDateTime } from "../../utils/timeUtils";
 
-export default function EventPopup({ event, resolvePhoto }) {
-  if (!event) return null;
+/* ---------------- CONFIG ---------------- */
+const REQUIRED_FIELDS = ["full_name", "pass_no", "scan_time", "person_type", "direction"];
+
+/* ---------------- HELPERS ---------------- */
+function isEventReady(event) {
+  return REQUIRED_FIELDS.every((k) => event?.[k]);
+}
+
+function formatDateSafe(d) {
+  if (!d) return "—";
+  const date = new Date(d);
+  return isNaN(date) ? "—" : date.toLocaleDateString("en-GB");
+}
+
+/* ---------------- MAIN ---------------- */
+export default function EventPopupV2({ event, resolvePhoto }) {
+  const ready = useMemo(() => isEventReady(event), [event]);
+
+  // Do not render until mandatory data is present to avoid blank fields
+  if (!event || !ready) return null;
 
   const isEntry = event.direction === "IN";
   const isLabour = event.person_type === "LABOUR";
 
-  const entryExitColor = isEntry ? "#2e7d32" : "#c62828";
-  const typeColor = isLabour ? "#ef6c00" : "#1565c0";
-
-  const getGateColor = (gate = "") => {
-    const g = gate.toLowerCase();
-    if (g.includes("mgr")) return "#1565c0";
-    if (g.includes("sgr")) return "#ef6c00";
-    if (g.includes("nora")) return "#6a1b9a";
-    return "#424242";
-  };
-
-  const gateColor = getGateColor(event.gate_name);
+  const entryColor = isEntry ? "#16a34a" : "#dc2626";
+  const typeColor = isLabour ? "#f97316" : "#2563eb";
 
   const registeredPhoto = resolvePhoto?.(
     isLabour
@@ -29,135 +37,107 @@ export default function EventPopup({ event, resolvePhoto }) {
 
   const livePhoto = resolvePhoto?.(event.live_photo_path);
 
-  const formatDate = (d) => {
-    if (!d) return "-";
-    const date = new Date(d);
-    return isNaN(date) ? "-" : date.toLocaleDateString("en-GB");
-  };
-
   const permissions = event.permissions
-    ? String(event.permissions)
-        .split(/[,;]/)
-        .map((p) => p.trim())
+    ? String(event.permissions).split(/[,;]/).map((p) => p.trim())
     : [];
 
   return (
-    <Box
-      sx={{
-        position: "fixed",
-        inset: 0,
-        background: "rgba(0,0,0,0.85)",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        zIndex: 9999,
-      }}
-    >
-      <Card
+    <Fade in timeout={300} unmountOnExit>
+      <Box
         sx={{
+          position: "fixed",
+          inset: 0,
+          background: "rgba(0,0,0,0.88)",
           display: "flex",
-          width: 1200,
-          minHeight: 520,
-          borderRadius: 4,
-          overflow: "hidden",
-          boxShadow: "0 25px 80px rgba(0,0,0,0.6)",
+          alignItems: "center",
+          justifyContent: "center",
+          zIndex: 9999,
         }}
       >
-        {/* LEFT STRIP */}
-        <GateStrip gate={event.gate_name} color={gateColor} />
-
-        {/* MAIN CARD */}
-        <Box sx={{ flex: 1, display: "flex", flexDirection: "column" }}>
-          
-          {/* ===== TOP BANNER ===== */}
+        <Card
+          sx={{
+            width: 1200,
+            minHeight: 520,
+            borderRadius: 4,
+            overflow: "hidden",
+            display: "flex",
+            flexDirection: "column",
+            boxShadow: "0 30px 90px rgba(0,0,0,0.7)",
+          }}
+        >
+          {/* ================= HEADER ================= */}
           <Box
             sx={{
-              background: entryExitColor,
+              background: entryColor,
               color: "#fff",
               px: 3,
-              py: 1.2,
+              py: 1.5,
               display: "flex",
               justifyContent: "space-between",
-              alignItems: "center",
             }}
           >
-            <Typography fontWeight={900} fontSize={18} letterSpacing={1.5}>
+            <Typography fontWeight={900} fontSize={20}>
               {isEntry ? "ENTRY" : "EXIT"}
             </Typography>
 
-            <Typography fontWeight={800}>
-              {formatDateTime(event.scan_time)}
+            <Typography fontWeight={700}>
+              {event.scan_time ? formatDateTime(event.scan_time) : "Loading..."}
             </Typography>
           </Box>
 
-          {/* ===== BODY ===== */}
+          {/* ================= BODY ================= */}
           <Box
             sx={{
               flex: 1,
               display: "flex",
-              background: "#fff",
-              p: 3,
               gap: 3,
+              p: 3,
+              background: "#fff",
             }}
           >
             {/* LEFT PHOTO */}
-            <CenterBox>
-              <PhotoBlock title="REGISTERED" src={registeredPhoto} />
-            </CenterBox>
+            <PhotoBlock title="REGISTERED" src={registeredPhoto} loading={!registeredPhoto} />
 
             {/* DETAILS */}
             <Box sx={{ flex: 1 }}>
-              
-              {/* NAME */}
-              <Typography
-                sx={{
-                  fontSize: 28,
-                  fontWeight: 900,
-                  display: "flex",
-                  gap: 1,
-                  whiteSpace: "nowrap",
-                  overflow: "hidden",
-                  textOverflow: "ellipsis",
-                }}
-              >
-                <span>{event.full_name || "-"}</span>
-                <span style={{ fontSize: 14, color: "#666" }}>
-                  — {event.designation || "—"}
-                </span>
-              </Typography>
+              {!ready ? (
+                <LoadingBlock />
+              ) : (
+                <>
+                  <Typography fontSize={28} fontWeight={900}>
+                    {event.full_name}
+                  </Typography>
 
-              {/* PASS ID */}
-              <Typography fontSize={11} color="text.secondary" mt={1} mb={2}>
-                PASS ID:{" "}
-                <strong>{event.pass_no || event.token_uid || "-"}</strong>
-              </Typography>
+                  <Typography fontSize={12} color="text.secondary" mb={2}>
+                    {event.designation || "—"}
+                  </Typography>
 
-              {/* SIMPLE LIST */}
-              <InfoRow label="COMPANY" value={event.company_name} />
-              <InfoRow label="PHONE" value={event.phone} />
-              <InfoRow label="PROJECT" value={event.project_name} />
-              <InfoRow label="DEPARTMENT" value={event.department_name} />
+                  <InfoRow label="PASS ID" value={event.pass_no} />
+                  <InfoRow label="COMPANY" value={event.company_name} />
+                  <InfoRow label="PHONE" value={event.phone} />
+                  <InfoRow label="PROJECT" value={event.project_name} />
+                  <InfoRow label="DEPARTMENT" value={event.department_name} />
 
-              <InfoRow
-                label="VALIDITY"
-                value={`${formatDate(event.pass_valid_from)} → ${formatDate(
-                  event.pass_valid_to
-                )}`}
-              />
+                  <InfoRow
+                    label="VALIDITY"
+                    value={`${formatDateSafe(event.pass_valid_from)} → ${formatDateSafe(
+                      event.pass_valid_to
+                    )}`}
+                  />
 
-              <InfoRow
-                label="ACCESS"
-                value={permissions.length ? permissions.join(", ") : "-"}
-              />
+                  <InfoRow
+                    label="ACCESS"
+                    value={permissions.length ? permissions.join(", ") : "—"}
+                  />
+                </>
+              )}
             </Box>
 
             {/* RIGHT PHOTO */}
-            <CenterBox>
-              <PhotoBlock title="LIVE" src={livePhoto} highlight />
-            </CenterBox>
+            <PhotoBlock title="LIVE" src={livePhoto} highlight loading={!livePhoto} />
           </Box>
 
-          {/* ===== BOTTOM BANNER ===== */}
+          {/* ================= FOOTER ================= */}
           <Box
             sx={{
               background: typeColor,
@@ -166,86 +146,40 @@ export default function EventPopup({ event, resolvePhoto }) {
               py: 1.2,
               display: "flex",
               justifyContent: "space-between",
-              alignItems: "center",
-              borderTop: "1px dashed rgba(255,255,255,0.4)",
             }}
           >
-            <Typography fontSize={11} letterSpacing={1.5}>
-              PASS TYPE
-            </Typography>
+            <Typography fontSize={12}>PASS TYPE</Typography>
 
             <Typography fontSize={18} fontWeight={900}>
               {isLabour ? "👷 LABOUR" : "👤 VISITOR"}
             </Typography>
 
-            <Typography fontSize={11}>AUTHORIZED</Typography>
+            <Typography fontSize={12}>
+              {ready ? "AUTHORIZED" : "VERIFYING..."}
+            </Typography>
           </Box>
-        </Box>
-
-        {/* RIGHT STRIP */}
-        <GateStrip gate={event.gate_name} color={gateColor} right />
-      </Card>
-    </Box>
+        </Card>
+      </Box>
+    </Fade>
   );
 }
 
-/* CENTER WRAPPER */
-function CenterBox({ children }) {
-  return (
-    <Box
-      sx={{
-        flex: 1,
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-      }}
-    >
-      {children}
-    </Box>
-  );
-}
+/* ---------------- COMPONENTS ---------------- */
 
-/* GATE STRIP */
-function GateStrip({ gate, color, right }) {
+function LoadingBlock() {
   return (
-    <Box
-      sx={{
-        width: 70,
-        background: color,
-        color: "#fff",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        position: "relative",
-      }}
-    >
-      <Box
-        sx={{
-          position: "absolute",
-          top: 0,
-          bottom: 0,
-          [right ? "left" : "right"]: 0,
-          width: 6,
-          background:
-            "repeating-linear-gradient(to bottom,#fff,#fff 6px,transparent 6px,transparent 12px)",
-        }}
-      />
-
-      <Typography
-        sx={{
-          writingMode: "vertical-rl",
-          fontWeight: 900,
-          fontSize: 18,
-        }}
-      >
-        {gate || "GATE"}
+    <Box>
+      <Typography fontSize={20} fontWeight={700}>
+        Fetching Details...
+      </Typography>
+      <Typography fontSize={12} color="text.secondary">
+        Please wait while we load complete data
       </Typography>
     </Box>
   );
 }
 
-/* PHOTO */
-function PhotoBlock({ title, src, highlight }) {
+function PhotoBlock({ title, src, highlight, loading }) {
   return (
     <Box
       sx={{
@@ -253,7 +187,7 @@ function PhotoBlock({ title, src, highlight }) {
         height: 270,
         borderRadius: 3,
         overflow: "hidden",
-        border: highlight ? "2px solid #4caf50" : "1px solid #ddd",
+        border: highlight ? "2px solid #22c55e" : "1px solid #ddd",
       }}
     >
       <Box sx={{ p: 0.5, background: "#f5f5f5" }}>
@@ -262,37 +196,37 @@ function PhotoBlock({ title, src, highlight }) {
         </Typography>
       </Box>
 
-      <Box sx={{ flex: 1, height: "100%" }}>
-        {src ? (
-          <img
-            src={src}
-            alt={title}
-            style={{ width: "100%", height: "100%", objectFit: "cover" }}
-          />
+      <Box
+        sx={{
+          height: "100%",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          background: "#fafafa",
+        }}
+      >
+        {loading ? (
+          <Typography fontSize={12} color="text.secondary">
+            Loading...
+          </Typography>
+        ) : src ? (
+          <img src={src} alt={title} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
         ) : (
-          <Box
-            height="100%"
-            display="flex"
-            alignItems="center"
-            justifyContent="center"
-          >
-            No Photo
-          </Box>
+          <Typography fontSize={12}>No Photo</Typography>
         )}
       </Box>
     </Box>
   );
 }
 
-/* INFO ROW */
 function InfoRow({ label, value }) {
   return (
-    <Box display="flex" gap={1} mb={0.5}>
-      <Typography fontSize={10} color="text.secondary" minWidth={90}>
+    <Box display="flex" gap={1} mb={0.6}>
+      <Typography fontSize={11} color="text.secondary" minWidth={110}>
         {label}
       </Typography>
-      <Typography fontSize={13} fontWeight={800} noWrap>
-        {value || "-"}
+      <Typography fontSize={14} fontWeight={700} noWrap>
+        {value || "—"}
       </Typography>
     </Box>
   );

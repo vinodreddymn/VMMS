@@ -1,0 +1,91 @@
+<!-- header.html -->
+<style>
+  .enhanced-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: linear-gradient(135deg, #020b1a, #0f172a);
+    padding: 12px 20px;
+    border-bottom: 2px solid #1e293b;
+    color: #e2e8f0;
+    font-family: "Segoe UI", sans-serif;
+  }
+
+  .header-left .system-title {
+    font-size: 18px;
+    font-weight: bold;
+    color: #38bdf8;
+  }
+
+  .header-left .system-subtitle {
+    font-size: 12px;
+    color: #94a3b8;
+  }
+
+  .header-center {
+    text-align: center;
+  }
+
+  .gate-name {
+    font-size: 20px;
+    font-weight: bold;
+  }
+
+  .status {
+    font-size: 14px;
+    padding: 4px 10px;
+    border-radius: 20px;
+    margin-top: 4px;
+  }
+
+  .status.waiting {
+    background: #334155;
+    color: #facc15;
+  }
+
+  .header-right {
+    text-align: right;
+  }
+
+  .date {
+    font-size: 14px;
+  }
+
+  .clock {
+    font-size: 18px;
+    font-weight: bold;
+    color: #22c55e;
+  }
+</style>
+
+<header class="bar enhanced-header">
+  <div class="header-left">
+    <div class="system-title">INS RAJALI NAVAL AIR STATION</div>
+    <div class="system-subtitle">Visitor Management & Gate Surveillance System</div>
+  </div>
+
+  <div class="header-center">
+    <div class="gate-name" id="gateName">Gate</div>
+    <div class="status waiting" id="status">WAITING...</div>
+  </div>
+
+  <div class="header-right">
+    <div class="date" id="date">--</div>
+    <div class="clock" id="clock">--</div>
+  </div>
+</header>
+
+<script>
+  function updateDateTime() {
+    const now = new Date();
+
+    document.getElementById("date").innerText =
+      now.toLocaleDateString();
+
+    document.getElementById("clock").innerText =
+      now.toLocaleTimeString();
+  }
+
+  setInterval(updateDateTime, 1000);
+  updateDateTime();
+</script>

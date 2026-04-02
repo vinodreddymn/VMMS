@@ -1,0 +1,10 @@
+{
+  "gate_id": 2,
+  "gate_name": "MGR-001",
+  "server_url": "https://localhost:5000",
+  "local_backend_url": "http://127.0.0.1:3200",
+  "display_ws": "ws://127.0.0.1:3200/display",
+  "live_photo_path": "gate-client/live_photo.jpg",
+  "allow_self_signed": true,
+  "video": "Integrated Webcam"
+}

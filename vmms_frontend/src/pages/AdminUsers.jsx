@@ -1,6 +1,5 @@
 ﻿import React, { useEffect, useState } from 'react'
 import DataTable from '../components/common/DataTable'
-import bcrypt from 'bcryptjs'   // add at top
 import {
   getUsers, addUser, updateUser, deactivateUser,
   getProjects, addProject, updateProject, deleteProject,
@@ -387,13 +386,11 @@ const fetchSMSLogs = async () => {
         return
       }
 
-      const salt = await bcrypt.genSalt(10)
-      const password_hash = await bcrypt.hash(userForm.password, salt)
-
       payload = {
         ...payload,
         username: userForm.username,
-        password_hash
+        // Backend hashes the password, so send the raw password field it expects
+        password: userForm.password
       }
 
       await addUser(payload)

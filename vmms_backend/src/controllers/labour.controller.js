@@ -11,6 +11,14 @@ import * as encryption from "../utils/encryption.util.js";
 import { getVisitorManifestPaths } from "../utils/visitor-storage.util.js";
 import db from "../config/db.js";
 
+const APP_TIMEZONE = process.env.APP_TIMEZONE || "Asia/Kolkata";
+
+const toLocalDateISO = (value = new Date()) => {
+  const date = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(date.getTime())) return null;
+  return new Intl.DateTimeFormat("en-CA", { timeZone: APP_TIMEZONE }).format(date); // YYYY-MM-DD
+};
+
 
 // =====================================================
 // HELPERS
@@ -71,18 +79,8 @@ const saveLabourPhotos = async ({
 
 const formatManifestNumber = (manifest) => {
   const rawDate = manifest?.manifest_date;
-  let datePart = "NA";
-
-  if (rawDate instanceof Date && !Number.isNaN(rawDate.getTime())) {
-    datePart = rawDate.toISOString().slice(0, 10).replace(/-/g, "");
-  } else if (typeof rawDate === "string" && rawDate.trim()) {
-    // Accept both ISO dates and datetime-like strings but keep only digits from date section
-    const isoLike = rawDate.includes("T")
-      ? rawDate.slice(0, 10)
-      : rawDate.slice(0, 10);
-    const digits = isoLike.replace(/\D/g, "");
-    datePart = digits.length === 8 ? digits : "NA";
-  }
+  const localDate = toLocalDateISO(rawDate);
+  const datePart = localDate ? localDate.replace(/-/g, "") : "NA";
 
   // Prefer a precomputed per-day sequence so numbers reset daily: 001, 002, ...
   const sequence =
@@ -179,7 +177,12 @@ Total Labours: ${labours.length}`;
 
       const formattedDate = new Date(manifest.manifest_date).toLocaleDateString(
         "en-IN",
-        { day: "2-digit", month: "short", year: "numeric" }
+        {
+          day: "2-digit",
+          month: "short",
+          year: "numeric",
+          timeZone: APP_TIMEZONE
+        }
       );
 
       const generated = new Date().toLocaleString("en-IN", {
@@ -188,7 +191,8 @@ Total Labours: ${labours.length}`;
         year: "numeric",
         hour: "2-digit",
         minute: "2-digit",
-        hour12: true
+        hour12: true,
+        timeZone: APP_TIMEZONE
       });
 
       doc.font("Helvetica")
@@ -632,7 +636,7 @@ export const createManifest = async (req, res) => {
 
     /* ================= CREATE MANIFEST ================= */
 
-    const today = new Date().toISOString().split("T")[0];
+    const today = toLocalDateISO();
 
     const manifest = await labourRepo.createManifest(
       supervisor.id,
@@ -795,7 +799,7 @@ export const createManifest = async (req, res) => {
 export const getTodayManifestBySupervisor = async (req, res) => {
   try {
     const { supervisor_id } = req.params;
-    const today = new Date().toISOString().split("T")[0];
+    const today = toLocalDateISO();
 
     const manifests = await labourRepo.getManifestsBySupervisor(supervisor_id, today);
     if (!manifests.length) {
@@ -830,7 +834,7 @@ export const getManifest = async (req, res) => {
 export const getTodayManifestsBySupervisor = async (req, res) => {
   try {
     const { supervisor_id } = req.params;
-    const today = new Date().toISOString().split("T")[0];
+    const today = toLocalDateISO();
 
     const manifests = await labourRepo.getManifestsBySupervisor(supervisor_id, today);
     res.json({ success: true, manifests: manifests.map(withManifestNumber) });

@@ -1,12 +1,17 @@
 import fs from "fs";
 import path from "path";
+import env from "../config/env.js";
 
-const uploadsRoot = "uploads";
+const uploadsRoot = env.paths?.uploadsDir || path.resolve(process.cwd(), "uploads");
+const uploadsUrlSegment = env.paths?.uploadsUrlSegment || "uploads";
 const visitorsRoot = path.join(uploadsRoot, "visitors");
+
+const toPublicPosix = (...segments) =>
+  path.posix.join(uploadsUrlSegment, ...segments);
 
 export const ensureVisitorFolders = async (visitorId) => {
   const id = String(visitorId);
-  const visitorDir = path.join(process.cwd(), visitorsRoot, id);
+  const visitorDir = path.join(visitorsRoot, id);
   await fs.promises.mkdir(path.join(visitorDir, "documents"), { recursive: true });
   await fs.promises.mkdir(path.join(visitorDir, "live"), { recursive: true });
   await fs.promises.mkdir(path.join(visitorDir, "labours"), { recursive: true });
@@ -27,15 +32,14 @@ export const getVisitorDocumentsDestination = async (visitorId) => {
 export const getVisitorManifestPaths = async (visitorId, filename) => {
   await ensureVisitorFolders(visitorId);
   const relativePosix = path.posix.join(
-    "uploads",
+    uploadsUrlSegment,
     "visitors",
     String(visitorId),
     "manifests",
     filename
   );
   const absolutePath = path.join(
-    process.cwd(),
-    "uploads",
+    uploadsRoot,
     "visitors",
     String(visitorId),
     "manifests",
@@ -47,15 +51,14 @@ export const getVisitorManifestPaths = async (visitorId, filename) => {
 export const getVisitorLivePhotoPaths = async (visitorId, filename) => {
   await ensureVisitorFolders(visitorId);
   const relativePosix = path.posix.join(
-    "uploads",
+    uploadsUrlSegment,
     "visitors",
     String(visitorId),
     "live",
     filename
   );
   const absolutePath = path.join(
-    process.cwd(),
-    "uploads",
+    uploadsRoot,
     "visitors",
     String(visitorId),
     "live",
@@ -67,15 +70,14 @@ export const getVisitorLivePhotoPaths = async (visitorId, filename) => {
 export const getSupervisorLabourPhotoPaths = async (supervisorId, filename) => {
   await ensureVisitorFolders(supervisorId);
   const relativePosix = path.posix.join(
-    "uploads",
+    uploadsUrlSegment,
     "visitors",
     String(supervisorId),
     "labours",
     filename
   );
   const absolutePath = path.join(
-    process.cwd(),
-    "uploads",
+    uploadsRoot,
     "visitors",
     String(supervisorId),
     "labours",
@@ -84,5 +86,22 @@ export const getSupervisorLabourPhotoPaths = async (supervisorId, filename) => {
   return { relativePosix, absolutePath };
 };
 
-export const toPosixRelativePath = (filePath) =>
-  String(filePath).split(path.sep).join(path.posix.sep);
+export const toPosixRelativePath = (filePath) => {
+  if (!filePath) return "";
+
+  const absolute = path.isAbsolute(filePath)
+    ? filePath
+    : path.resolve(filePath);
+
+  const relativeToUploads = path.relative(uploadsRoot, absolute);
+  const insideUploads =
+    relativeToUploads &&
+    !relativeToUploads.startsWith("..") &&
+    !path.isAbsolute(relativeToUploads);
+
+  const normalized = insideUploads
+    ? toPublicPosix(relativeToUploads.split(path.sep).join(path.posix.sep))
+    : absolute.split(path.sep).join(path.posix.sep);
+
+  return normalized;
+};

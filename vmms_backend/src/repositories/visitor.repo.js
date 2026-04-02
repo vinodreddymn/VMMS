@@ -39,6 +39,7 @@ const BASE_SELECT = `
     v.valid_from,
     v.status,
     v.valid_to,
+    v.entrance_id,
     v.vehicle_number,
     v.vehicle_make,
     v.vehicle_model,
@@ -53,6 +54,7 @@ const BASE_SELECT = `
     vt.is_internal,
     p.project_name,
     d.department_name,
+    en.entrance_name,
     h.full_name AS host_name,
     rc.card_uid,
     rc.card_status,
@@ -61,6 +63,7 @@ const BASE_SELECT = `
   LEFT JOIN visitor_types vt ON vt.id = v.visitor_type_id
   LEFT JOIN projects p ON p.id = v.project_id
   LEFT JOIN departments d ON d.id = v.department_id
+  LEFT JOIN entrances en ON en.id = v.entrance_id
   LEFT JOIN visitors h ON h.id = v.host_id
   LEFT JOIN rfid_cards rc 
     ON rc.visitor_id = v.id AND rc.card_status = 'ACTIVE'
@@ -281,12 +284,17 @@ export const findAll = async (filters = {}, pagination = {}) => {
   const statsQuery = `
     SELECT
       COUNT(*)::int AS total,
-      COUNT(*) FILTER (WHERE v.valid_to IS NULL)::int AS inactive,
+      COUNT(*) FILTER (WHERE v.status = 'INACTIVE' OR v.valid_to IS NULL)::int AS inactive,
       COUNT(*) FILTER (WHERE v.status = 'SOFT_LOCK')::int AS soft_lock,
-      COUNT(*) FILTER (WHERE v.valid_to IS NOT NULL AND v.valid_to >= CURRENT_DATE)::int AS active,
-      COUNT(*) FILTER (WHERE v.valid_to IS NOT NULL AND v.valid_to < CURRENT_DATE)::int AS expired,
+      COUNT(*) FILTER (WHERE v.status = 'ACTIVE')::int AS active,
       COUNT(*) FILTER (
-        WHERE v.valid_to IS NOT NULL
+        WHERE v.status = 'ACTIVE'
+          AND v.valid_to IS NOT NULL
+          AND v.valid_to < CURRENT_DATE
+      )::int AS expired,
+      COUNT(*) FILTER (
+        WHERE v.status = 'ACTIVE'
+          AND v.valid_to IS NOT NULL
           AND v.valid_to >= CURRENT_DATE
           AND v.valid_to <= CURRENT_DATE + INTERVAL '7 days'
       )::int AS expiring

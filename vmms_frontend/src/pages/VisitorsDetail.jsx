@@ -209,6 +209,10 @@ export default function VisitorsDetail() {
   }
 
   const { visitor, documents, biometric, allowed_gates, soft_lock_reason } = profile
+  const visitorEntranceName =
+    visitor.entrance_name ||
+    entrances.find(e => Number(e.id) === Number(visitor.entrance_id))?.entrance_name ||
+    (visitor.entrance_id ? `Entrance ${visitor.entrance_id}` : null)
   const lockReason =
     visitor.status === "SOFT_LOCK"
       ? (
@@ -239,6 +243,9 @@ export default function VisitorsDetail() {
         .map(eid => entrances.find(e => Number(e.id) === Number(eid))?.entrance_name || `Entrance ${eid}`)
     )
   )
+  if (visitorEntranceName && !allowedEntranceNames.includes(visitorEntranceName)) {
+    allowedEntranceNames.unshift(visitorEntranceName)
+  }
   const hostLookup = hosts.find(h => Number(h.id) === Number(visitor.host_id))
   const hostDisplay =
     visitor.host_name ||
@@ -438,6 +445,7 @@ export default function VisitorsDetail() {
   <Info label="Designation" value={visitor.designation}/>
   <Info label="Department" value={visitor.department_name}/>
   <Info label="Project" value={visitor.project_name}/>
+  <Info label="Entrance" value={visitorEntranceName || '-'} />
   <Info label="Host" value={hostDisplay}/>
   <Info label="Gender" value={visitor.gender}/>
   <Info label="Blood Group" value={visitor.blood_group}/>
