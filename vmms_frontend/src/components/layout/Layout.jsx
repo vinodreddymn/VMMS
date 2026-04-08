@@ -89,7 +89,6 @@ useEffect(() => {
   const triggerLogout = () => {
     logout()
     navigate("/login", { replace: true })
-    alert("Logged out due to inactivity (2 minutes).")
   }
 
   const resetIdleTimer = () => {

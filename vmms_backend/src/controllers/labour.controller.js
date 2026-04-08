@@ -59,18 +59,22 @@ const saveLabourPhotos = async ({
 
     const serial = String(i + 1).padStart(2, "0");
     const fileName = `${manifestNumber}_${serial}.jpg`;
-    const filePath = path.join(folderPath, fileName);
+    const { absolutePath, relativePosix } = await getVisitorManifestPaths(
+      supervisor_id,
+      fileName
+    );
 
     const imageBuffer = Buffer.from(
       base64.replace(/^data:image\/\w+;base64,/, ""),
       "base64"
     );
 
-    await fs.promises.writeFile(filePath, imageBuffer);
+    await fs.promises.writeFile(absolutePath, imageBuffer);
 
     savedPhotos.push({
       labour_id: labour.id,
-      fileName
+      fileName,
+      relativePosix
     });
   }
 
@@ -727,7 +731,7 @@ export const createManifest = async (req, res) => {
           `UPDATE manifest_labours 
            SET photo_path = $1 
            WHERE manifest_id = $2 AND labour_id = $3`,
-          [photo.fileName, manifest.id, photo.labour_id]
+          [photo.relativePosix || photo.fileName, manifest.id, photo.labour_id]
         )
       )
     );

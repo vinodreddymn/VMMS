@@ -252,22 +252,26 @@ export const getManifestLabours = async (manifest_id) => {
       l.phone,
       l.aadhaar_encrypted,
       l.aadhaar_last4,
-      l.gender,
-      l.age,
-      l.supervisor_id,
-      lt.token_uid,
-      lt.assigned_date,
-      CASE WHEN COUNT(CASE WHEN al.direction = 'IN' THEN 1 END) > 0 THEN TRUE ELSE FALSE END as is_checked_in,
-      CASE WHEN COUNT(CASE WHEN al.direction = 'OUT' THEN 1 END) > 0 THEN TRUE ELSE FALSE END as is_checked_out,
-      CASE WHEN lt.status IS NULL OR lt.status IN ('INACTIVE', 'RETURNED') THEN TRUE ELSE FALSE END as token_returned
-    FROM labours l
-    JOIN manifest_labours ml ON l.id = ml.labour_id
-    LEFT JOIN labour_tokens lt ON lt.labour_id = l.id AND DATE(lt.assigned_date) = DATE((SELECT manifest_date FROM labour_manifests WHERE id = $1))
-    LEFT JOIN access_logs al ON al.person_id = l.id AND al.person_type = 'LABOUR' AND DATE(al.scan_time) = DATE((SELECT manifest_date FROM labour_manifests WHERE id = $1))
-    WHERE ml.manifest_id = $1
-    GROUP BY l.id, lt.id, lt.token_uid, lt.assigned_date, lt.status, l.aadhaar_encrypted
-    ORDER BY l.id
-  `;
+        l.gender,
+        l.age,
+        l.supervisor_id,
+        lt.token_uid,
+        lt.assigned_date,
+        ml.photo_path AS registered_photo_path,
+        CASE WHEN COUNT(CASE WHEN al.direction = 'IN' THEN 1 END) > 0 THEN TRUE ELSE FALSE END as is_checked_in,
+        CASE WHEN COUNT(CASE WHEN al.direction = 'OUT' THEN 1 END) > 0 THEN TRUE ELSE FALSE END as is_checked_out,
+        CASE WHEN lt.status IS NULL OR lt.status IN ('INACTIVE', 'RETURNED') THEN TRUE ELSE FALSE END as token_returned,
+        MIN(CASE WHEN al.direction = 'IN' THEN al.scan_time END) AS first_check_in,
+        MAX(CASE WHEN al.direction = 'OUT' THEN al.scan_time END) AS last_check_out,
+        MIN(CASE WHEN al.direction = 'IN' THEN al.live_photo_path END) AS live_photo_path
+      FROM labours l
+      JOIN manifest_labours ml ON l.id = ml.labour_id
+      LEFT JOIN labour_tokens lt ON lt.labour_id = l.id AND DATE(lt.assigned_date) = DATE((SELECT manifest_date FROM labour_manifests WHERE id = $1))
+      LEFT JOIN access_logs al ON al.person_id = l.id AND al.person_type = 'LABOUR' AND DATE(al.scan_time) = DATE((SELECT manifest_date FROM labour_manifests WHERE id = $1))
+      WHERE ml.manifest_id = $1
+      GROUP BY l.id, lt.id, lt.token_uid, lt.assigned_date, lt.status, l.aadhaar_encrypted, ml.photo_path
+      ORDER BY l.id
+    `;
   const result = await db.query(query, [manifest_id]);
   return result.rows;
 };
@@ -372,6 +376,7 @@ export const getManifestsByDate = async (date) => {
       lm.id, 
       lm.supervisor_id,
       lm.manifest_date,
+      COALESCE(lm.printed_at, lm.manifest_date::timestamp) AS created_at,
       (
         SELECT COUNT(*)
         FROM labour_manifests m2
@@ -387,7 +392,7 @@ export const getManifestsByDate = async (date) => {
     LEFT JOIN visitors v ON lm.supervisor_id = v.id
     LEFT JOIN projects p ON v.project_id = p.id
     WHERE lm.manifest_date = $1
-    ORDER BY lm.id DESC
+      ORDER BY COALESCE(lm.printed_at, lm.manifest_date::timestamp) DESC, lm.id DESC
   `;
   const result = await db.query(query, [date]);
   return result.rows;

@@ -5,12 +5,14 @@ import {
   IconButton,
   Typography,
   Box,
-  Button,
+  Menu,
+  MenuItem,
 } from "@mui/material"
 
 import MenuIcon from "@mui/icons-material/Menu"
 import LogoutRoundedIcon from "@mui/icons-material/LogoutRounded"
 import PowerSettingsNewRoundedIcon from "@mui/icons-material/PowerSettingsNewRounded"
+import AccountCircleIcon from "@mui/icons-material/AccountCircle"
 import Tooltip from "@mui/material/Tooltip"
 
 import useAuthStore from "../../store/auth.store"
@@ -22,6 +24,7 @@ export default function Header({ onMenuClick }) {
   const navigate = useNavigate()
 
   const [currentTime, setCurrentTime] = useState(new Date())
+  const [menuAnchor, setMenuAnchor] = useState(null)
 
   /* =============================
      REAL TIME CLOCK
@@ -40,8 +43,14 @@ export default function Header({ onMenuClick }) {
   ============================== */
 
   const handleLogout = () => {
+    setMenuAnchor(null)
     logout()
     navigate("/login")
+  }
+
+  const handleProfile = () => {
+    setMenuAnchor(null)
+    navigate("/profile")
   }
 
   /* =============================
@@ -210,9 +219,9 @@ export default function Header({ onMenuClick }) {
 
           {/* LOGOUT POWER BUTTON */}
 
-          <Tooltip title="Logout" arrow>
+          <Tooltip title="Account" arrow>
             <IconButton
-              onClick={handleLogout}
+              onClick={(e) => setMenuAnchor(e.currentTarget)}
               size="small"
               sx={{
                 width: 36,
@@ -231,6 +240,23 @@ export default function Header({ onMenuClick }) {
               <PowerSettingsNewRoundedIcon sx={{ fontSize: 20 }} />
             </IconButton>
           </Tooltip>
+
+          <Menu
+            anchorEl={menuAnchor}
+            open={Boolean(menuAnchor)}
+            onClose={() => setMenuAnchor(null)}
+            anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
+            transformOrigin={{ vertical: "top", horizontal: "right" }}
+          >
+            <MenuItem onClick={handleProfile}>
+              <AccountCircleIcon fontSize="small" style={{ marginRight: 8 }} />
+              Chnage Password
+            </MenuItem>
+            <MenuItem onClick={handleLogout}>
+              <LogoutRoundedIcon fontSize="small" style={{ marginRight: 8 }} />
+              Logout
+            </MenuItem>
+          </Menu>
 
         </Box>
 

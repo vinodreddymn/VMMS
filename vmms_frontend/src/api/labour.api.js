@@ -52,6 +52,10 @@ export const createManifest = (payload) =>
 export const getManifest = (manifestId) =>
   api.get(`/labour/manifests/${manifestId}`)
 
+// Get manifests for a specific date (via analytics endpoint)
+export const getManifestsByDate = (date) =>
+  api.get('/labour/analytics', { params: { date } })
+
 // Get labour analytics for a specific date
 export const getLabourAnalytics = (date) =>
   api.get('/labour/analytics', {
@@ -104,6 +108,7 @@ export default {
   // Manifest
   createManifest,
   getManifest,
+  getManifestsByDate,
   updateManifest,
   getManifestPdf,
   getTodayManifestBySupervisor,

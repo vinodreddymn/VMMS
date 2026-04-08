@@ -100,3 +100,20 @@ git pull on raspberry pi,
 
 naviagte to projects/Vmms/vmms_backend/exports
 psql -U svr_user -d vmms_db -f vmms_db_backup_22_March_2026.sql
+
+
+Most Useful Variations
+1. View latest logs (recommended)
+journalctl -u vmms-backend -n 50
+2. Follow logs live (like tail -f)
+journalctl -u vmms-backend -f
+3. Logs from today only
+journalctl -u vmms-backend --since today
+4. Logs with timestamps in readable format
+journalctl -u vmms-backend -o cat
+
+cd /home/ec2-user/VMMS/vmms_frontend
+npm run build
+sudo rm -rf /usr/share/nginx/html/*
+sudo cp -r dist/* /usr/share/nginx/html/
+sudo systemctl restart nginx

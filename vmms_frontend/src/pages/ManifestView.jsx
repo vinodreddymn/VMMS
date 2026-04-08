@@ -21,6 +21,36 @@ import RefreshIcon from '@mui/icons-material/Refresh'
 
 import DataTable from '../components/common/DataTable'
 
+const fileBase =
+  import.meta.env.VITE_FILE_BASE_URL ||
+  (import.meta.env.VITE_API_BASE_URL
+    ? import.meta.env.VITE_API_BASE_URL.replace(/\/api\/?$/, '')
+    : 'http://localhost:5000')
+
+const makeUrl = (path) => {
+  if (!path) return ''
+  if (path.startsWith('http://') || path.startsWith('https://')) return path
+  return `${fileBase}/${path.replace(/^\/+/, '')}`
+}
+
+const buildRegisteredPhotoUrl = (row, manifest) => {
+  const path =
+    row.registered_photo_path ||
+    row.photo_path ||
+    row.photo_url ||
+    row.enrollment_photo_path
+
+  if (!path) return ''
+
+  if (path.includes('/')) return makeUrl(path)
+
+  const supervisorId = manifest?.supervisor_id
+  if (supervisorId) {
+    return makeUrl(`uploads/visitors/${supervisorId}/manifests/${path}`)
+  }
+  return makeUrl(path)
+}
+
 // ===============================
 // Helpers
 // ===============================
@@ -31,6 +61,30 @@ const formatDate = (date) => {
     month: 'short',
     year: 'numeric'
   })
+}
+
+const formatTime = (ts) => {
+  if (!ts) return '-'
+  return new Date(ts).toLocaleTimeString('en-IN', {
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit'
+  })
+}
+
+const formatDuration = (start, end) => {
+  if (!start || !end) return '-'
+  const diffMs = new Date(end) - new Date(start)
+  if (diffMs <= 0) return '-'
+  const totalSec = Math.floor(diffMs / 1000)
+  const hrs = Math.floor(totalSec / 3600)
+  const mins = Math.floor((totalSec % 3600) / 60)
+  const secs = totalSec % 60
+  const parts = []
+  if (hrs) parts.push(`${hrs}h`)
+  if (mins || hrs) parts.push(`${mins}m`)
+  parts.push(`${secs}s`)
+  return parts.join(' ')
 }
 
 // ===============================
@@ -103,18 +157,40 @@ export default function ManifestView() {
     { key: 'serial', label: '#', width: 60, align: 'center' },
 
     {
-      key: 'photo',
-      label: 'Photo',
+      key: 'registered_photo',
+      label: 'Registered Photo',
       render: (_, row) =>
-        row.photo_url ? (
+        (() => {
+          const src = buildRegisteredPhotoUrl(row, manifest)
+          if (src) {
+            return (
+              <Avatar
+                src={src}
+                sx={{ width: 42, height: 42, cursor: 'pointer' }}
+                onClick={() => setPreviewImage(src)}
+              />
+            )
+          }
+          return (
+            <Avatar sx={{ width: 42, height: 42 }}>
+              {row.full_name?.[0] || '?'}
+            </Avatar>
+          )
+        })()
+    },
+    {
+      key: 'live_photo',
+      label: 'Live Photo',
+      render: (_, row) =>
+        row.live_photo_path ? (
           <Avatar
-            src={row.photo_url}
+            src={makeUrl(row.live_photo_path)}
             sx={{ width: 42, height: 42, cursor: 'pointer' }}
-            onClick={() => setPreviewImage(row.photo_url)}
+            onClick={() => setPreviewImage(makeUrl(row.live_photo_path))}
           />
         ) : (
-          <Avatar sx={{ width: 42, height: 42 }}>
-            {row.full_name?.[0] || '?'}
+          <Avatar sx={{ width: 42, height: 42, bgcolor: 'grey.300', color: 'text.secondary' }}>
+            -
           </Avatar>
         )
     },
@@ -134,7 +210,27 @@ export default function ManifestView() {
     },
 
     { key: 'phone', label: 'Phone' },
-    { key: 'token_uid', label: 'RFID Token' }
+    { key: 'token_uid', label: 'RFID Token' },
+    {
+      key: 'first_check_in',
+      label: 'Check-In Time',
+      render: (_, row) => formatTime(row.first_check_in)
+    },
+    {
+      key: 'last_check_out',
+      label: 'Check-Out Time',
+      render: (_, row) => formatTime(row.last_check_out)
+    },
+    {
+      key: 'duration_inside',
+      label: 'Time Stayed Inside',
+      render: (_, row) => {
+        if (!row.first_check_in && !row.last_check_out) {
+          return 'Did not check in'
+        }
+        return formatDuration(row.first_check_in, row.last_check_out)
+      }
+    }
   ]
 
   // ================= STATES =================
@@ -218,17 +314,109 @@ export default function ManifestView() {
       </Paper>
 
       {/* ===== SUPERVISOR ===== */}
-      <Paper sx={{ p: 3, mb: 3, borderRadius: 3 }}>
-        <Typography variant="h6" mb={2}>
+      <Paper
+        sx={{
+          p: 3,
+          mb: 3,
+          borderRadius: 4,
+          boxShadow: "0 4px 20px rgba(0,0,0,0.05)",
+        }}
+      >
+        <Typography
+          variant="h6"
+          mb={2}
+          sx={{ fontWeight: 600, letterSpacing: 0.5 }}
+        >
           Supervisor Details
         </Typography>
 
-        <Box display="flex" flexDirection="column" gap={1.5}>
-          <Typography><strong>Supervisor:</strong> {manifest.supervisor_name}</Typography>
-          <Typography><strong>Company:</strong> {manifest.company_name}</Typography>
-          <Typography><strong>Project:</strong> {manifest.project_name}</Typography>
-          <Typography><strong>Phone:</strong> {manifest.primary_phone}</Typography>
-          <Typography><strong>Date:</strong> {formatDate(manifest.manifest_date)}</Typography>
+        <Box
+          display="grid"
+          gridTemplateColumns={{ xs: "1fr", md: "2fr 1fr" }}
+          gap={3}
+          alignItems="center"
+        >
+          {/* LEFT - DETAILS */}
+          <Box
+            display="grid"
+            gridTemplateColumns="repeat(auto-fit, minmax(220px, 1fr))"
+            gap={2}
+          >
+            {[
+              { label: "Supervisor", value: manifest.supervisor_name },
+              { label: "Company", value: manifest.company_name },
+              { label: "Project", value: manifest.project_name },
+              { label: "Phone", value: manifest.primary_phone },
+              { label: "Date", value: formatDate(manifest.manifest_date) },
+            ].map((item, index) => (
+              <Box
+                key={index}
+                sx={{
+                  p: 1.5,
+                  borderRadius: 2,
+                  backgroundColor: "#f9fafb",
+                }}
+              >
+                <Typography
+                  variant="caption"
+                  sx={{ color: "text.secondary", fontWeight: 500 }}
+                >
+                  {item.label}
+                </Typography>
+
+                <Typography
+                  variant="body1"
+                  sx={{ fontWeight: 600, mt: 0.5 }}
+                >
+                  {item.value || "-"}
+                </Typography>
+              </Box>
+            ))}
+          </Box>
+
+          {/* RIGHT - PHOTO */}
+          <Box
+            display="flex"
+            flexDirection="column"
+            alignItems="center"
+            justifyContent="center"
+            sx={{
+              p: 2,
+              borderRadius: 3,
+              background: "#f9fafb",
+              border: "1px solid #e5e7eb",
+            }}
+          >
+            <Typography
+              variant="subtitle2"
+              color="text.secondary"
+              mb={1}
+            >
+              Registered Photo
+            </Typography>
+
+            <Avatar
+              src={makeUrl(manifest.enrollment_photo_path || "")}
+              sx={{
+                width: 130,
+                height: 130,
+                borderRadius: 3,
+                border: "3px solid white",
+                boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
+              }}
+              variant="rounded"
+            >
+              {manifest.supervisor_name?.[0] || "?"}
+            </Avatar>
+
+            <Typography
+              variant="body2"
+              mt={1.5}
+              sx={{ fontWeight: 500 }}
+            >
+              {manifest.supervisor_name || "Unknown"}
+            </Typography>
+          </Box>
         </Box>
       </Paper>
 

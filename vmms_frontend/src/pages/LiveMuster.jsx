@@ -163,20 +163,20 @@ export default function LiveMuster() {
       {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
 
       {/* ---------------- KPI Cards ---------------- */}
-      <Grid container spacing={2} mb={2}>
-        <Grid item xs={12} md={2.4}>
+        <Grid container spacing={2} mb={2}>
+        <Grid size={{ xs: 12, md: 2.4 }}>
           <KpiCard icon={<PeopleIcon />} label="Total Tracked" value={stats.total} />
         </Grid>
-        <Grid item xs={12} md={2.4}>
+        <Grid size={{ xs: 12, md: 2.4 }}>
           <KpiCard icon={<LoginIcon />} label="Inside" value={stats.inside} color="success.main" />
         </Grid>
-        <Grid item xs={12} md={2.4}>
+        <Grid size={{ xs: 12, md: 2.4 }}>
           <KpiCard icon={<LogoutIcon />} label="Outside" value={stats.outside} color="error.main" />
         </Grid>
-        <Grid item xs={12} md={2.4}>
+        <Grid size={{ xs: 12, md: 2.4 }}>
           <KpiCard icon={<PersonIcon />} label="Visitors" value={stats.visitors} color="primary.main" />
         </Grid>
-        <Grid item xs={12} md={2.4}>
+        <Grid size={{ xs: 12, md: 2.4 }}>
           <KpiCard icon={<EngineeringIcon />} label="Labours" value={stats.labours} color="warning.main" />
         </Grid>
       </Grid>

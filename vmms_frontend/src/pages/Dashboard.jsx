@@ -534,30 +534,9 @@ export default function Dashboard() {
         onToggle={() => setOpenOverview((v) => !v)}
       >
         <Grid container spacing={2}>
-          <Grid size={{ xs: 12, md: 4 }}>
-            <Paper
-              elevation={0}
-              sx={{
-                p: 2.5,
-                background: 'linear-gradient(135deg, #0f172a 0%, #1e293b 100%)',
-                color: 'white',
-                borderRadius: 2,
-                height: '100%',
-              }}
-            >
-              <Typography variant="caption" sx={{ opacity: 0.85, letterSpacing: 1 }}>
-                TOTAL VISITORS REGISTERED
-              </Typography>
-              <Typography variant="h3" fontWeight={800} sx={{ mt: 1 }}>
-                {totalVisitorsRegistered}
-              </Typography>
-              <Typography variant="caption" sx={{ opacity: 0.7 }}>
-                All-time registrations in the system
-              </Typography>
-            </Paper>
-          </Grid>
 
-          <Grid size={{ xs: 12, md: 4 }}>
+
+          <Grid size={{ xs: 12, md: 6 }}>
             <Paper
               elevation={0}
               sx={{
@@ -591,7 +570,7 @@ export default function Dashboard() {
             </Paper>
           </Grid>
 
-          <Grid size={{ xs: 12, md: 4 }}>
+          <Grid size={{ xs: 12, md: 6 }}>
             <Paper
               elevation={0}
               sx={{
@@ -1079,8 +1058,8 @@ export default function Dashboard() {
         expanded={openGates}
         onToggle={() => setOpenGates((v) => !v)}
       >
-        <Grid container spacing={2}>
-          <Grid item xs={12} md={12}>
+          <Grid container spacing={2}>
+          <Grid size={{ xs: 12, md: 12 }}>
             <GateLoadChart />
           </Grid>
         </Grid>

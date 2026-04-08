@@ -618,7 +618,7 @@ export default function VisitorWizard() {
             <Typography variant="h6" gutterBottom>Documents</Typography>
             <Divider sx={{ mb: 2 }} />
             <Grid container spacing={2}>
-              <Grid item xs={12} md={4}>
+              <Grid size={{ xs: 12, md: 4 }}>
                 <TextField
                   select
                   fullWidth
@@ -631,7 +631,7 @@ export default function VisitorWizard() {
                   ))}
                 </TextField>
               </Grid>
-              <Grid item xs={12} md={4}>
+              <Grid size={{ xs: 12, md: 4 }}>
                 <TextField
                   fullWidth
                   label="Document Number"
@@ -639,7 +639,7 @@ export default function VisitorWizard() {
                   onChange={(e) => setDocNumber(e.target.value)}
                 />
               </Grid>
-              <Grid item xs={12} md={4}>
+              <Grid size={{ xs: 12, md: 4 }}>
                 <TextField
                   type="date"
                   fullWidth
@@ -649,7 +649,7 @@ export default function VisitorWizard() {
                   InputLabelProps={{ shrink: true }}
                 />
               </Grid>
-              <Grid item xs={12}>
+              <Grid size={{ xs: 12 }}>
                 <Button variant="contained" component="label">
                   Select File
                   <input hidden type="file" onChange={(e) => setDocFile(e.target.files?.[0] || null)} />
@@ -688,7 +688,7 @@ export default function VisitorWizard() {
               </Alert>
             )}
             <Grid container spacing={2}>
-              <Grid item xs={12} md={6}>
+              <Grid size={{ xs: 12, md: 6 }}>
                 <TextField
                   type="date"
                   fullWidth
@@ -698,7 +698,7 @@ export default function VisitorWizard() {
                   InputLabelProps={{ shrink: true }}
                 />
               </Grid>
-              <Grid item xs={12} md={6}>
+              <Grid size={{ xs: 12, md: 6 }}>
                 <TextField
                   type="date"
                   fullWidth
@@ -782,9 +782,9 @@ function Section({ title, children }) {
 
 function Field(props) {
   return (
-    <Grid item xs={12} sm={6}>
-      <TextField fullWidth variant="outlined" {...props} />
-    </Grid>
+    <Grid size={{ xs: 12, sm: 6 }}>
+        <TextField fullWidth variant="outlined" {...props} />
+      </Grid>
   )
 }
 

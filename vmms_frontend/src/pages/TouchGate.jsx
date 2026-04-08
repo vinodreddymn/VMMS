@@ -534,8 +534,8 @@ export default function TouchGateUltimate() {
           mx: 'auto',
         }}
       >
-        <Grid container spacing={2} sx={{ alignItems: 'stretch' }}>
-          <Grid item xs={12}>
+          <Grid container spacing={2} sx={{ alignItems: 'stretch' }}>
+          <Grid size={{ xs: 12 }}>
             <Card sx={{ p: { xs: 2, md: 2.5 }, height: '100%', width: '100%' }}>
               <Stack direction="row" alignItems="center" justifyContent="space-between" mb={1.5}>
                 <Typography variant="h6" fontWeight={800}>

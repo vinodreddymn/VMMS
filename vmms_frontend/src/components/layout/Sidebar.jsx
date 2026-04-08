@@ -27,7 +27,6 @@ import AssessmentIcon from "@mui/icons-material/Assessment"
 import SecurityIcon from "@mui/icons-material/Security"
 import SyncIcon from "@mui/icons-material/Sync"
 import GroupIcon from "@mui/icons-material/Group"
-import AccountCircleIcon from "@mui/icons-material/AccountCircle"
 import TouchAppIcon from "@mui/icons-material/TouchApp"
 
 /* MENU STRUCTURE */
@@ -37,7 +36,6 @@ const menuStructure = [
     label: "COMMAND",
     items: [
       { title: "Dashboard", path: "/", icon: DashboardIcon, exact: true },
-      { title: "My Profile", path: "/profile", icon: AccountCircleIcon },
       { title: "Andon Display", path: "/andon", icon: TvIcon },
     ],
   },
