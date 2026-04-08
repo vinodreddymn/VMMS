@@ -258,8 +258,18 @@ export default function VisitorsDetail() {
 
   const fullName = `${visitor.first_name || ''} ${visitor.last_name || ''}`.trim()
 
-  const apiBase = import.meta.env.VITE_FILE_BASE_URL || `${window.location.hostname ? `${window.location.hostname}` : 'localhost'}:5000`
-  const fileBase = `${window.location.protocol}//${apiBase.replace(/^https?:\/\//, "")}`
+  const fileBase =
+    import.meta.env.VITE_FILE_BASE_URL ||
+    (import.meta.env.VITE_API_BASE_URL
+      ? import.meta.env.VITE_API_BASE_URL.replace(/\/api\/?$/, '')
+      : window.location.origin)
+
+  const makeFileUrl = (path) => {
+    if (!path) return ''
+    if (path.startsWith('data:')) return path
+    if (/^https?:\/\//.test(path)) return path
+    return `${fileBase}/${path.replace(/^\/+/, '')}`
+  }
 
   return (
   <Box>
@@ -284,7 +294,7 @@ export default function VisitorsDetail() {
   <Box display="flex" alignItems="center" gap={2}>
 
   <Avatar
-    src={visitor.enrollment_photo_path ? `${fileBase}/${visitor.enrollment_photo_path}` : ""}
+    src={makeFileUrl(visitor.enrollment_photo_path)}
     sx={{ width:90, height:90, border:"3px solid rgba(255,255,255,0.4)" }}
   >
     {fullName?.[0]}
@@ -640,7 +650,7 @@ export default function VisitorsDetail() {
   d.doc_number,
   formatDate(d.expiry_date),
   d.file_path
-  ? <Button size="small" onClick={()=>window.open(`${fileBase}/${d.file_path}`)}>View</Button>
+  ? <Button size="small" onClick={()=>window.open(makeFileUrl(d.file_path))}>View</Button>
   : "-"
   ]) || []}
   />
@@ -769,7 +779,7 @@ export default function VisitorsDetail() {
   formatDate(m.manifest_date),
   m.signed ? "Yes":"No",
   m.pdf_path
-  ? <Button size="small" onClick={()=>window.open(`${fileBase}/${m.pdf_path}`)}>View PDF</Button>
+  ? <Button size="small" onClick={()=>window.open(makeFileUrl(m.pdf_path))}>View PDF</Button>
   : "-"
   ])}
   />

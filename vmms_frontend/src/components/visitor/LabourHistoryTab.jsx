@@ -25,6 +25,13 @@ export default function LabourHistoryTab({
   manifests = [],
   fileBase = '',
 }) {
+  const resolveFile = React.useCallback((path) => {
+    if (!path) return ''
+    if (path.startsWith('data:')) return path
+    if (/^https?:\/\//.test(path)) return path
+    return `${fileBase}/${path.replace(/^\/+/, '')}`
+  }, [fileBase])
+
   const byDay = groupByDate(labourHistory)
 
   const uniqueLaboursInRange = React.useMemo(() => {
@@ -86,7 +93,7 @@ export default function LabourHistoryTab({
                       <Chip
                         key={mf.id}
                         label={`Manifest ${mf.manifest_number || mf.id}`}
-                        onClick={()=> mf.pdf_path && window.open(`${fileBase}/${mf.pdf_path}`)}
+                        onClick={()=> mf.pdf_path && window.open(resolveFile(mf.pdf_path))}
                         variant="outlined"
                         color="primary"
                         clickable={!!mf.pdf_path}

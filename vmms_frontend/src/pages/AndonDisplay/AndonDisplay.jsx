@@ -245,22 +245,19 @@ export default function AndonDisplay() {
   /* FILE PATH                                         */
   /* ------------------------------------------------ */
 
-  const fileBase = useMemo(() => {
+  const fileBase = useMemo(() => (
+    import.meta.env.VITE_FILE_BASE_URL ||
+    (import.meta.env.VITE_API_BASE_URL
+      ? import.meta.env.VITE_API_BASE_URL.replace(/\/api\/?$/, "")
+      : window.location.origin)
+  ), [])
 
-    return (
-      import.meta.env.VITE_FILE_BASE_URL ||
-      (import.meta.env.VITE_API_BASE_URL
-        ? import.meta.env.VITE_API_BASE_URL.replace(/\/api\/?$/, "")
-        : "http://localhost:5000")
-    )
-
-  }, [])
-
-  const resolvePhoto = path => {
+  const resolvePhoto = useCallback((path) => {
     if (!path) return null
-    if (path.startsWith("http")) return path
-    return `${fileBase}/${path}`
-  }
+    if (path.startsWith("data:")) return path
+    if (/^https?:\/\//.test(path)) return path
+    return `${fileBase}/${path.replace(/^\/+/, "")}`
+  }, [fileBase])
 
   /* ------------------------------------------------ */
   /* UI                                                */
