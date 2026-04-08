@@ -38,7 +38,7 @@ pipeline {
 
                     echo Connecting to EC2...
 
-                    ssh -o StrictHostKeyChecking=no -i "%KEYFILE%" %USER%@13.234.238.152 "set -e && echo ===== CONNECTED TO EC2 ===== && cd /home/ec2-user/VMMS && git pull origin main && echo ===== BACKEND RESTART ===== && sudo systemctl restart vmms-backend && sudo systemctl status vmms-backend --no-pager && echo ===== FRONTEND BUILD ===== && cd /home/ec2-user/VMMS/vmms_frontend && npm install && npm run build && echo ===== DEPLOY FRONTEND ===== && sudo rm -rf /usr/share/nginx/html/* && sudo cp -r dist/* /usr/share/nginx/html/ && echo ===== NGINX RESTART ===== && sudo systemctl restart nginx && sudo systemctl status nginx --no-pager && echo ===== DEPLOYMENT COMPLETED ====="
+                    ssh -o StrictHostKeyChecking=no -i "%KEYFILE%" %USER%@13.234.238.152 "set -e && echo ===== CONNECTED TO EC2 ===== && cd /home/ec2-user/VMMS && git fetch origin main && git reset --hard origin/main && echo ===== BACKEND RESTART ===== && sudo systemctl restart vmms-backend && sudo systemctl status vmms-backend --no-pager && echo ===== FRONTEND BUILD ===== && cd /home/ec2-user/VMMS/vmms_frontend && npm install && npm run build && echo ===== DEPLOY FRONTEND ===== && sudo rm -rf /usr/share/nginx/html/* && sudo cp -r dist/* /usr/share/nginx/html/ && echo ===== NGINX RESTART ===== && sudo systemctl restart nginx && sudo systemctl status nginx --no-pager && echo ===== DEPLOYMENT COMPLETED ====="
 
                     '''
                 }
